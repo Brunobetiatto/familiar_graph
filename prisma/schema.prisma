@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // Altere se for usar mysql ou outro
+  url      = env("DATABASE_URL")
+}
+
+// --- ENUMS ---
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum RelationType {
+  PARENT
+  CHILD
+  SPOUSE
+  SIBLING
+}
+
+// --- MODELS ---
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  image     String?
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+
+  // Relacionamentos (1 para N)
+  personTrees       PersonTree[]
+  requestsMade      NodeRequest[] @relation("UserRequests")
+  requestsReviewed  NodeRequest[] @relation("AdminReviews")
+  globalNodes       GlobalNode[]  @relation("UserCreatedNodes")
+  globalEdges       GlobalEdge[]  @relation("UserCreatedEdges")
+
+  @@map("USER")
+}
+
+model PersonTree {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  createdAt DateTime @default(now())
+
+  // Relacionamentos
+  user      User         @relation(fields: [userId], references: [id])
+  nodes     PersonNode[]
+  edges     PersonEdge[]
+
+  @@map("PERSON_TREE")
+}
+
+model PersonNode {
+  id        String    @id @default(uuid())
+  treeId    String
+  name      String
+  birthDate DateTime? @db.Date
+  deathDate DateTime? @db.Date
+  gender    Gender?
+  bio       String?   @db.Text
+  photoUrl  String?
+
+  // Relacionamentos
+  tree      PersonTree   @relation(fields: [treeId], references: [id])
+  edgesFrom PersonEdge[] @relation("EdgeFrom")
+  edgesTo   PersonEdge[] @relation("EdgeTo")
+
+  @@map("PERSON_NODE")
+}
+
+model PersonEdge {
+  id       String       @id @default(uuid())
+  treeId   String
+  fromId   String
+  toId     String
+  relation RelationType
+
+  // Relacionamentos
+  tree     PersonTree @relation(fields: [treeId], references: [id])
+  fromNode PersonNode @relation("EdgeFrom", fields: [fromId], references: [id])
+  toNode   PersonNode @relation("EdgeTo", fields: [toId], references: [id])
+
+  @@map("PERSON_EDGE")
+}
+
+model NodeRequest {
+  id            String        @id @default(uuid())
+  userId        String
+  status        RequestStatus @default(PENDING)
+  nodeName      String
+  nodeBirthDate DateTime?     @db.Date
+  nodeDeathDate DateTime?     @db.Date
+  nodeGender    Gender?
+  nodeBio       String?       @db.Text
+  userNote      String?       @db.Text
+  adminNote     String?       @db.Text
+  reviewedById  String?
+  reviewedAt    DateTime?
+
+  // Relacionamentos
+  requester    User              @relation("UserRequests", fields: [userId], references: [id])
+  reviewer     User?             @relation("AdminReviews", fields: [reviewedById], references: [id])
+  connections  NodeRequestConn[]
+
+  @@map("NODE_REQUEST")
+}
+
+model NodeRequestConn {
+  id            String       @id @default(uuid())
+  requestId     String
+  globalNodeId  String
+  relation      RelationType
+  newNodeIsFrom Boolean
+
+  // Relacionamentos
+  request       NodeRequest @relation(fields: [requestId], references: [id])
+  globalNode    GlobalNode  @relation(fields: [globalNodeId], references: [id])
+
+  @@map("NODE_REQUEST_CONN")
+}
+
+model GlobalNode {
+  id          String    @id @default(uuid())
+  name        String
+  birthDate   DateTime? @db.Date
+  deathDate   DateTime? @db.Date
+  gender      Gender?
+  bio         String?   @db.Text
+  photoUrl    String?
+  createdById String
+
+  // Relacionamentos
+  creator     User              @relation("UserCreatedNodes", fields: [createdById], references: [id])
+  connections NodeRequestConn[]
+  edgesFrom   GlobalEdge[]      @relation("GlobalEdgeFrom")
+  edgesTo     GlobalEdge[]      @relation("GlobalEdgeTo")
+
+  @@map("GLOBAL_NODE")
+}
+
+model GlobalEdge {
+  id          String       @id @default(uuid())
+  fromId      String
+  toId        String
+  relation    RelationType
+  createdById String
+
+  // Relacionamentos
+  creator     User       @relation("UserCreatedEdges", fields: [createdById], references: [id])
+  fromNode    GlobalNode @relation("GlobalEdgeFrom", fields: [fromId], references: [id])
+  toNode      GlobalNode @relation("GlobalEdgeTo", fields: [toId], references: [id])
+
+  @@map("GLOBAL_EDGE")
+}
