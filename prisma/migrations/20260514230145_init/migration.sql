@@ -1,0 +1,154 @@
+-- CreateEnum
+CREATE TYPE "Role" AS ENUM ('USER', 'ADMIN');
+
+-- CreateEnum
+CREATE TYPE "Gender" AS ENUM ('MALE', 'FEMALE', 'OTHER');
+
+-- CreateEnum
+CREATE TYPE "RequestStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
+
+-- CreateEnum
+CREATE TYPE "RelationType" AS ENUM ('PARENT', 'CHILD', 'SPOUSE', 'SIBLING');
+
+-- CreateTable
+CREATE TABLE "USER" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "name" TEXT,
+    "image" TEXT,
+    "role" "Role" NOT NULL DEFAULT 'USER',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "USER_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PERSON_TREE" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PERSON_TREE_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PERSON_NODE" (
+    "id" TEXT NOT NULL,
+    "treeId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "birthDate" DATE,
+    "deathDate" DATE,
+    "gender" "Gender",
+    "bio" TEXT,
+    "photoUrl" TEXT,
+
+    CONSTRAINT "PERSON_NODE_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PERSON_EDGE" (
+    "id" TEXT NOT NULL,
+    "treeId" TEXT NOT NULL,
+    "fromId" TEXT NOT NULL,
+    "toId" TEXT NOT NULL,
+    "relation" "RelationType" NOT NULL,
+
+    CONSTRAINT "PERSON_EDGE_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "NODE_REQUEST" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "status" "RequestStatus" NOT NULL DEFAULT 'PENDING',
+    "nodeName" TEXT NOT NULL,
+    "nodeBirthDate" DATE,
+    "nodeDeathDate" DATE,
+    "nodeGender" "Gender",
+    "nodeBio" TEXT,
+    "userNote" TEXT,
+    "adminNote" TEXT,
+    "reviewedById" TEXT,
+    "reviewedAt" TIMESTAMP(3),
+
+    CONSTRAINT "NODE_REQUEST_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "NODE_REQUEST_CONN" (
+    "id" TEXT NOT NULL,
+    "requestId" TEXT NOT NULL,
+    "globalNodeId" TEXT NOT NULL,
+    "relation" "RelationType" NOT NULL,
+    "newNodeIsFrom" BOOLEAN NOT NULL,
+
+    CONSTRAINT "NODE_REQUEST_CONN_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "GLOBAL_NODE" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "birthDate" DATE,
+    "deathDate" DATE,
+    "gender" "Gender",
+    "bio" TEXT,
+    "photoUrl" TEXT,
+    "createdById" TEXT NOT NULL,
+
+    CONSTRAINT "GLOBAL_NODE_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "GLOBAL_EDGE" (
+    "id" TEXT NOT NULL,
+    "fromId" TEXT NOT NULL,
+    "toId" TEXT NOT NULL,
+    "relation" "RelationType" NOT NULL,
+    "createdById" TEXT NOT NULL,
+
+    CONSTRAINT "GLOBAL_EDGE_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "USER_email_key" ON "USER"("email");
+
+-- AddForeignKey
+ALTER TABLE "PERSON_TREE" ADD CONSTRAINT "PERSON_TREE_userId_fkey" FOREIGN KEY ("userId") REFERENCES "USER"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PERSON_NODE" ADD CONSTRAINT "PERSON_NODE_treeId_fkey" FOREIGN KEY ("treeId") REFERENCES "PERSON_TREE"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PERSON_EDGE" ADD CONSTRAINT "PERSON_EDGE_treeId_fkey" FOREIGN KEY ("treeId") REFERENCES "PERSON_TREE"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PERSON_EDGE" ADD CONSTRAINT "PERSON_EDGE_fromId_fkey" FOREIGN KEY ("fromId") REFERENCES "PERSON_NODE"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PERSON_EDGE" ADD CONSTRAINT "PERSON_EDGE_toId_fkey" FOREIGN KEY ("toId") REFERENCES "PERSON_NODE"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "NODE_REQUEST" ADD CONSTRAINT "NODE_REQUEST_userId_fkey" FOREIGN KEY ("userId") REFERENCES "USER"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "NODE_REQUEST" ADD CONSTRAINT "NODE_REQUEST_reviewedById_fkey" FOREIGN KEY ("reviewedById") REFERENCES "USER"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "NODE_REQUEST_CONN" ADD CONSTRAINT "NODE_REQUEST_CONN_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "NODE_REQUEST"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "NODE_REQUEST_CONN" ADD CONSTRAINT "NODE_REQUEST_CONN_globalNodeId_fkey" FOREIGN KEY ("globalNodeId") REFERENCES "GLOBAL_NODE"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GLOBAL_NODE" ADD CONSTRAINT "GLOBAL_NODE_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "USER"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GLOBAL_EDGE" ADD CONSTRAINT "GLOBAL_EDGE_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "USER"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GLOBAL_EDGE" ADD CONSTRAINT "GLOBAL_EDGE_fromId_fkey" FOREIGN KEY ("fromId") REFERENCES "GLOBAL_NODE"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GLOBAL_EDGE" ADD CONSTRAINT "GLOBAL_EDGE_toId_fkey" FOREIGN KEY ("toId") REFERENCES "GLOBAL_NODE"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
