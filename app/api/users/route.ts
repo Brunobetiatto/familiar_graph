@@ -1,7 +1,8 @@
+// app/api/users/route.ts
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma'; // Ajuste o caminho se a sua pasta lib estiver em outro lugar
 
-// ROTA GET: Busca todos os usuários do banco
+
 export async function GET() {
   try {
     const users = await prisma.user.findMany({
@@ -49,3 +50,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Erro ao criar o usuário' }, { status: 500 });
   }
 }
+

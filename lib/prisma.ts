@@ -1,8 +1,9 @@
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '@prisma/client';
+import * as PrismaPkg from '@prisma/client';
+const { PrismaClient } = PrismaPkg as any;
 
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
+const globalForPrisma = global as unknown as { prisma: InstanceType<typeof PrismaClient> };
 
 const createPrismaClient = () => {
   // Cria o pool de conexão nativo do pg usando a sua URL do .env

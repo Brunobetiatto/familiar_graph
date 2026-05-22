@@ -1,0 +1,283 @@
+'use client';
+
+import { useEffect, useRef } from 'react';
+import type { PersonNodeData } from './nodes/PersonNode';
+
+// ─── Tipos ────────────────────────────────────────────────────────────────────
+
+type Props = {
+  node: (PersonNodeData & { id: string }) | null;
+  onClose: () => void;
+  onRequestConnection?: (nodeId: string) => void;
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const GENDER_LABEL: Record<string, string> = {
+  MALE: 'Masculino',
+  FEMALE: 'Feminino',
+  OTHER: 'Outro',
+};
+
+function formatDate(iso: string | null): string | null {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase())
+    .slice(0, 2)
+    .join('');
+}
+
+// ─── Componente ───────────────────────────────────────────────────────────────
+
+export default function NodeDetailPanel({ node, onClose, onRequestConnection }: Props) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Fecha ao pressionar Escape
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
+  const visible = node !== null;
+
+  return (
+    <div
+      ref={panelRef}
+      role="dialog"
+      aria-label="Detalhes do membro"
+      style={{
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        height: '100%',
+        width: 300,
+        zIndex: 20,
+        display: 'flex',
+        flexDirection: 'column',
+        background: '#111009',
+        borderLeft: '1px solid #3a3020',
+        boxShadow: '-8px 0 40px rgba(0,0,0,0.5)',
+        fontFamily: '"DM Serif Display", Georgia, serif',
+        transform: visible ? 'translateX(0)' : 'translateX(100%)',
+        transition: 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+      }}
+    >
+      {/* ── Cabeçalho ── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '16px 20px',
+          borderBottom: '1px solid #2a2218',
+        }}
+      >
+        <span
+          style={{
+            color: '#5a4e38',
+            fontSize: 10,
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.1em',
+          }}
+        >
+          Detalhes
+        </span>
+        <button
+          onClick={onClose}
+          aria-label="Fechar painel"
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            color: '#5a4e38',
+            fontSize: 18,
+            lineHeight: 1,
+            padding: 4,
+            transition: 'color 0.15s',
+          }}
+          onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = '#c49a2a')}
+          onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = '#5a4e38')}
+        >
+          ✕
+        </button>
+      </div>
+
+      {node && (
+        <>
+          {/* ── Avatar + nome ── */}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              padding: '28px 20px 20px',
+              borderBottom: '1px solid #2a2218',
+            }}
+          >
+            <div
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: '50%',
+                background: node.photoUrl
+                  ? `url(${node.photoUrl}) center/cover no-repeat`
+                  : '#231d10',
+                border: '2px solid #4a3c20',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 22,
+                fontWeight: 700,
+                color: '#c49a2a',
+                marginBottom: 14,
+                letterSpacing: '0.04em',
+              }}
+            >
+              {!node.photoUrl && getInitials(node.name)}
+            </div>
+
+            <h2
+              style={{
+                color: '#f0e6d3',
+                fontSize: 18,
+                fontWeight: 600,
+                textAlign: 'center',
+                lineHeight: 1.3,
+                margin: 0,
+              }}
+            >
+              {node.name}
+            </h2>
+
+            {node.gender && (
+              <span style={{ color: '#6a5a40', fontSize: 12, marginTop: 6 }}>
+                {GENDER_LABEL[node.gender]}
+              </span>
+            )}
+          </div>
+
+          {/* ── Campos de informação ── */}
+          <div
+            style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 18,
+            }}
+          >
+            {formatDate(node.birthDate) && (
+              <InfoRow label="Nascimento" value={formatDate(node.birthDate)!} />
+            )}
+            {formatDate(node.deathDate) && (
+              <InfoRow label="Falecimento" value={formatDate(node.deathDate)!} />
+            )}
+            {node.bio && (
+              <div>
+                <p
+                  style={{
+                    color: '#5a4e38',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.1em',
+                    marginBottom: 6,
+                  }}
+                >
+                  Biografia
+                </p>
+                <p style={{ color: '#9a8a6a', fontSize: 13, lineHeight: 1.65, margin: 0 }}>
+                  {node.bio}
+                </p>
+              </div>
+            )}
+
+            {!node.bio && !node.birthDate && !node.deathDate && (
+              <p style={{ color: '#3a3020', fontSize: 13, fontStyle: 'italic' }}>
+                Sem informações adicionais.
+              </p>
+            )}
+          </div>
+
+          {/* ── Rodapé ── */}
+          <div style={{ padding: '16px 20px', borderTop: '1px solid #2a2218' }}>
+            <GhostButton
+              onClick={() => onRequestConnection?.(node.id)}
+              label="Solicitar conexão com este membro →"
+            />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Sub-componentes ──────────────────────────────────────────────────────────
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p
+        style={{
+          color: '#5a4e38',
+          fontSize: 10,
+          fontWeight: 600,
+          textTransform: 'uppercase',
+          letterSpacing: '0.1em',
+          marginBottom: 4,
+        }}
+      >
+        {label}
+      </p>
+      <p style={{ color: '#c8b898', fontSize: 13, margin: 0 }}>{value}</p>
+    </div>
+  );
+}
+
+function GhostButton({ onClick, label }: { onClick?: () => void; label: string }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: '100%',
+        padding: '10px 16px',
+        background: 'transparent',
+        border: '1px solid #4a3c20',
+        borderRadius: 8,
+        color: '#8a7856',
+        fontSize: 13,
+        cursor: 'pointer',
+        transition: 'border-color 0.15s, color 0.15s',
+        fontFamily: 'inherit',
+        textAlign: 'center',
+      }}
+      onMouseEnter={(e) => {
+        const btn = e.currentTarget;
+        btn.style.borderColor = '#c49a2a';
+        btn.style.color = '#c49a2a';
+      }}
+      onMouseLeave={(e) => {
+        const btn = e.currentTarget;
+        btn.style.borderColor = '#4a3c20';
+        btn.style.color = '#8a7856';
+      }}
+    >
+      {label}
+    </button>
+  );
+}
