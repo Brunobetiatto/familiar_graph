@@ -3,7 +3,7 @@
 // Nenhum fetch HTTP adicional; Prisma roda no servidor.
 
 import type { Node, Edge } from '@xyflow/react';
-import GlobalGraphFlow from '../api/components/graph/GlobalGraphFlow';
+import GlobalGraphFlow from '@/app/components/graph/GlobalGraphFlow';
 import { prisma } from '@/lib/prisma';
 
 interface GlobalNodeData extends Record<string, unknown> {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import DirectNodeModal from './components/DirectNodeModal'; // 1. IMPORT AQUI NO TOPO
 
 type RequestConnection = {
   id: string;
@@ -25,6 +26,9 @@ export default function AdminDashboard() {
   const [error, setError] = useState('');
   const router = useRouter();
 
+  // 2. ESTADO DO MODAL AQUI (Dentro da função principal)
+  const [isDirectModalOpen, setIsDirectModalOpen] = useState(false);
+
   useEffect(() => {
     fetchRequests();
   }, []);
@@ -33,7 +37,6 @@ export default function AdminDashboard() {
     try {
       const res = await fetch('/api/node-requests');
       if (res.status === 401 || res.status === 403) {
-        // Se não for admin, chuta de volta para o login ou para o grafo
         router.push('/login');
         return;
       }
@@ -49,7 +52,6 @@ export default function AdminDashboard() {
   }
 
   async function handleAction(requestId: string, action: 'approve' | 'reject') {
-    // Remove o item da tela imediatamente (Optimistic UI)
     setRequests((prev) => prev.filter((r) => r.id !== requestId));
 
     try {
@@ -63,7 +65,6 @@ export default function AdminDashboard() {
       if (!res.ok) throw new Error(`Erro ao ${action}`);
     } catch (err) {
       console.error(err);
-      // Em caso de erro, recarrega a lista do banco
       fetchRequests();
     }
   }
@@ -83,13 +84,24 @@ export default function AdminDashboard() {
               Gerencie as solicitações pendentes para o Grafo Global.
             </p>
           </div>
-          <button 
-            onClick={() => router.push('/global-graph')}
-            style={{ padding: '10px 16px', background: '#181410', color: '#c49a2a', border: '1px solid #3a3020', borderRadius: 8, cursor: 'pointer' }}
-          >
-            Voltar ao Grafo
-          </button>
+          
+          {/* Botões do Cabeçalho corrigidos (sem duplicação) */}
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button 
+                onClick={() => setIsDirectModalOpen(true)}
+                style={{ padding: '10px 16px', background: '#c49a2a', color: '#0f0d0b', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
+            >
+                + Criar Nó Direto
+            </button>
+            <button 
+                onClick={() => router.push('/global-graph')}
+                style={{ padding: '10px 16px', background: '#181410', color: '#c49a2a', border: '1px solid #3a3020', borderRadius: 8, cursor: 'pointer' }}
+            >
+                Voltar ao Grafo
+            </button>
+          </div>
         </div>
+        
 
         {error && <p style={{ color: '#ff6b6b' }}>{error}</p>}
 
@@ -100,13 +112,12 @@ export default function AdminDashboard() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {requests.map((req) => {
-              const conn = req.connections[0]; // Pega a primeira conexão
+              const conn = req.connections[0];
               
               return (
                 <div key={req.id} style={{ background: '#111009', border: '1px solid #3a3020', borderRadius: 12, padding: 24 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     
-                    {/* Informações do Nó e Relação */}
                     <div>
                       <h2 style={{ color: '#f0e6d3', margin: '0 0 8px 0', fontSize: 22 }}>
                         {req.nodeName}
@@ -122,14 +133,12 @@ export default function AdminDashboard() {
                       )}
                     </div>
 
-                    {/* Informações de quem solicitou */}
                     <div style={{ textAlign: 'right', fontFamily: 'sans-serif', fontSize: 12 }}>
                       <span style={{ color: '#5a4e38', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Solicitado por</span>
                       <p style={{ color: '#a89878', margin: '4px 0' }}>{req.requester.name || req.requester.email}</p>
                     </div>
                   </div>
 
-                  {/* Nota do Usuário para o Admin */}
                   {req.userNote && (
                     <div style={{ background: '#1a1611', padding: 12, borderRadius: 6, marginTop: 16, borderLeft: '3px solid #c49a2a' }}>
                       <span style={{ color: '#5a4e38', fontSize: 10, textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Nota do Usuário</span>
@@ -137,7 +146,6 @@ export default function AdminDashboard() {
                     </div>
                   )}
 
-                  {/* Botões de Ação */}
                   <div style={{ display: 'flex', gap: 12, marginTop: 24, justifyContent: 'flex-end' }}>
                     <button 
                       onClick={() => handleAction(req.id, 'reject')}
@@ -157,6 +165,16 @@ export default function AdminDashboard() {
             })}
           </div>
         )}
+
+        {/* 3. COMPONENTE RENDERIZADO AQUI NO FINAL DO CONTAINER PRINCIPAL */}
+        <DirectNodeModal
+          isOpen={isDirectModalOpen}
+          onClose={() => setIsDirectModalOpen(false)}
+          onSuccess={() => {
+            alert('Nó inserido com sucesso!');
+          }}
+        />
+
       </div>
     </div>
   );
