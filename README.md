@@ -195,27 +195,6 @@ O enum `RelationType` contempla relações familiares, sociais, profissionais e 
 - `GET /api/users`: lista usuários.
 - `POST /api/users`: cria usuários.
 
-## Observações de implementação
-
-- O Prisma 7 usa `prisma.config.ts` para carregar a `DATABASE_URL`.
-- O cliente Prisma é criado em `lib/prisma.ts` com `pg.Pool` e `PrismaPg`.
-- A página `/global-graph` busca dados no servidor e passa os nós/arestas para o componente cliente.
-- O layout do grafo é calculado no cliente antes da renderização final.
-- O projeto registra logs de queries do Prisma em desenvolvimento.
-- O painel administrativo depende de um usuário com papel `ADMIN`.
-
-## Cuidados antes de produção
-
-Antes de publicar este projeto, vale revisar:
-
-- Implementação de uma sessão mais robusta, com expiração, renovação e logout.
-- Proteção administrativa consistente em todos os endpoints sensíveis.
-- Validação mais rígida dos payloads de API.
-- Seeds ou comandos utilitários para criação do primeiro administrador.
-- Tratamento de duplicidade de nós e relações em todos os fluxos.
-- Testes automatizados para autenticação, solicitações e aprovação.
-- Configuração segura de variáveis de ambiente e credenciais.
-
 ## Desenvolvimento com Prisma
 
 Após alterar `prisma/schema.prisma`, gere uma nova migração:
