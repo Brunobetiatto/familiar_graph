@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import type { Prisma, GlobalNode, NodeRequest, NodeRequestConn, GlobalEdge } from '@prisma/client';
+import type { Prisma, GlobalNode, NodeRequest, NodeRequestConn } from '@prisma/client';
 
 interface ApproveRequestBody {
   requestId: string;
@@ -32,64 +32,89 @@ export async function POST(request: Request): Promise<NextResponse> {
       );
     }
 
-    const connection: NodeRequestConn | undefined = nodeRequest.connections[0]; // Pega a primeira conexão atrelada
-    if (!connection) {
-      return NextResponse.json(
-        { error: 'A solicitação não possui dados de conexão válidos.' },
-        { status: 400 }
-      );
-    }
+    const connections = nodeRequest.connections;
 
     // 3. Executa a transferência de tabelas dentro de uma Transação Segura
     const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       
-      // Passo A: Cria o nó oficial na tabela GLOBAL_NODE
-      const officialNode: GlobalNode = await tx.globalNode.create({
-        data: {
-          name: nodeRequest.nodeName,
-          gender: nodeRequest.nodeGender,
-          birthDate: nodeRequest.nodeBirthDate,
-          deathDate: nodeRequest.nodeDeathDate,
-          bio: nodeRequest.nodeBio,
-          photoUrl: null, // Pode ser expandido futuramente
-          createdById: nodeRequest.userId, // O usuário que solicitou vira o criador oficial
+      const normalizedName = nodeRequest.nodeName.trim();
+      const existingNode = await tx.globalNode.findFirst({
+        where: {
+          name: {
+            equals: normalizedName,
+            mode: 'insensitive',
+          },
         },
       });
 
-      // Passo B: Descobre a direção correta da linha (Aresta)
-      // newNodeIsFrom define se o novo nó é o 'from' (origem) ou 'to' (destino)
-      const fromId = connection.newNodeIsFrom ? officialNode.id : connection.globalNodeId;
-      const toId = connection.newNodeIsFrom ? connection.globalNodeId : officialNode.id;
+      // Passo A: Cria o nó oficial na tabela GLOBAL_NODE (se nao existir)
+      const officialNode: GlobalNode = existingNode
+        ? existingNode
+        : await tx.globalNode.create({
+            data: {
+              name: normalizedName,
+              gender: nodeRequest.nodeGender,
+              birthDate: nodeRequest.nodeBirthDate,
+              deathDate: nodeRequest.nodeDeathDate,
+              bio: nodeRequest.nodeBio,
+              photoUrl: null, // Pode ser expandido futuramente
+              createdById: nodeRequest.userId, // O usuario que solicitou vira o criador oficial
+            },
+          });
 
-      // Passo C: Cria a linha oficial na tabela GLOBAL_EDGE
-      const officialEdge = await tx.globalEdge.create({
-        data: {
-          fromId: fromId,
-          toId: toId,
+      if (connections.length > 0) {
+        const edgesToCreate = connections.map((connection) => ({
+          fromId: connection.newNodeIsFrom ? officialNode.id : connection.globalNodeId,
+          toId: connection.newNodeIsFrom ? connection.globalNodeId : officialNode.id,
           relation: connection.relation,
           createdById: nodeRequest.userId,
-        },
+        }));
+
+        const existingEdges = await tx.globalEdge.findMany({
+          where: {
+            OR: edgesToCreate.map((edge) => ({
+              fromId: edge.fromId,
+              toId: edge.toId,
+              relation: edge.relation,
+            })),
+          },
+          select: {
+            fromId: true,
+            toId: true,
+            relation: true,
+          },
+        });
+
+        const existingKey = new Set(
+          existingEdges.map((edge) => `${edge.fromId}-${edge.toId}-${edge.relation}`)
+        );
+
+        const newEdges = edgesToCreate.filter(
+          (edge) => !existingKey.has(`${edge.fromId}-${edge.toId}-${edge.relation}`)
+        );
+
+        if (newEdges.length > 0) {
+          await tx.globalEdge.createMany({ data: newEdges });
+        }
+      }
+
+      await tx.nodeRequestConn.deleteMany({
+        where: { requestId: nodeRequest.id },
       });
 
       // Passo D: Retira/Deleta o registro da tabela provisória (NODE_REQUEST)
-      // Se o seu banco tiver Cascade Delete, deletar o NodeRequest já limpa o NodeRequestConn automaticamente.
-      // Por segurança, vamos deletar a conexão explicitamente primeiro.
-      await tx.nodeRequestConn.delete({
-        where: { id: connection.id }
-      });
-
       await tx.nodeRequest.delete({
         where: { id: nodeRequest.id },
       });
 
-      return { officialNode, officialEdge };
+      return { officialNode, reusedNode: Boolean(existingNode) };
     });
 
     // 4. Retorna sucesso com os dados oficiais criados
     return NextResponse.json({
       message: 'Solicitação aprovada e inserida no grafo global com sucesso!',
       node: result.officialNode,
-      edge: result.officialEdge
+      reusedNode: result.reusedNode,
     }, { status: 200 });
 
   } catch (error) {

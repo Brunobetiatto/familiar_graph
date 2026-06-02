@@ -53,10 +53,11 @@ function PersonNode({ data, selected }: NodeProps<PersonNodeType>) {
   return (
     <>
       {/* Handle invisível no topo (recebe arestas de pais) */}
+     {/* Target Handle: Onde as linhas chegam */}
       <Handle
         type="target"
         position={Position.Top}
-        className={styles.handle}
+        style={{ background: 'transparent', border: 'none', top: -5 }} 
       />
 
       <div
@@ -99,7 +100,7 @@ function PersonNode({ data, selected }: NodeProps<PersonNodeType>) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className={styles.handle}
+        style={{ background: 'transparent', border: 'none', bottom: -5 }}
       />
     </>
   );

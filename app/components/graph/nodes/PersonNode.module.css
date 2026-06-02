@@ -1,10 +1,11 @@
 /* components/graph/nodes/PersonNode.module.css */
 
 .handle {
-  opacity: 0; /* Mantemos invisível para um visual limpo */
-  pointer-events: none;
+  width: 1px;
+  height: 1px;
+  background: transparent !important;
+  border: none !important;
 }
-
 .nodeContainer {
   width: 200px;
   background: #181410;
@@ -18,12 +19,15 @@
   transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
   cursor: pointer;
   font-family: "DM Serif Display", Georgia, serif;
+  z-index: 1;
+  position: relative;
 }
 
 .nodeContainerSelected {
   background: #221e15;
   border-color: #c49a2a;
   box-shadow: 0 0 0 2px rgba(196, 154, 42, 0.25), 0 6px 24px rgba(0, 0, 0, 0.5);
+   z-index: 2;
 }
 
 .avatar {

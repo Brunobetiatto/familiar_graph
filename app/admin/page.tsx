@@ -14,6 +14,9 @@ type RequestConnection = {
 type NodeRequest = {
   id: string;
   nodeName: string;
+  nodeBirthDate: string | null;
+  nodeDeathDate: string | null;
+  nodeGender: string | null;
   nodeBio: string | null;
   userNote: string | null;
   requester: { name: string; email: string };
@@ -25,6 +28,7 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const router = useRouter();
+  const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
 
   // 2. ESTADO DO MODAL AQUI (Dentro da função principal)
   const [isDirectModalOpen, setIsDirectModalOpen] = useState(false);
@@ -73,6 +77,21 @@ export default function AdminDashboard() {
     return <div style={{ color: '#c49a2a', padding: 40, background: '#0f0d0b', height: '100vh' }}>Carregando painel...</div>;
   }
 
+  const formatDate = (value: string | null) => {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleDateString('pt-BR');
+  };
+
+  const formatGender = (value: string | null) => {
+    if (!value) return null;
+    if (value === 'MALE') return 'Masculino';
+    if (value === 'FEMALE') return 'Feminino';
+    if (value === 'OTHER') return 'Outro';
+    return value;
+  };
+
   return (
     <div style={{ minHeight: '100vh', background: '#0f0d0b', padding: '40px 20px', fontFamily: '"DM Serif Display", Georgia, serif' }}>
       <div style={{ maxWidth: 800, margin: '0 auto' }}>
@@ -112,7 +131,14 @@ export default function AdminDashboard() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {requests.map((req) => {
-              const conn = req.connections[0];
+              const primaryConnection = req.connections[0];
+              const hasConnections = req.connections.length > 0;
+              const summary = hasConnections
+                ? req.connections.length === 1
+                  ? `Conectar a ${primaryConnection.globalNode.name} como ${primaryConnection.relation}`
+                  : `Conectar a ${primaryConnection.globalNode.name} e mais ${req.connections.length - 1}`
+                : 'Sem conexoes';
+              const isExpanded = expandedRequestId === req.id;
               
               return (
                 <div key={req.id} style={{ background: '#111009', border: '1px solid #3a3020', borderRadius: 12, padding: 24 }}>
@@ -123,7 +149,7 @@ export default function AdminDashboard() {
                         {req.nodeName}
                       </h2>
                       <p style={{ color: '#c8b898', margin: 0, fontSize: 14, fontFamily: 'sans-serif' }}>
-                        Conectar a <strong style={{ color: '#c49a2a' }}>{conn?.globalNode?.name}</strong> como <strong style={{ color: '#c49a2a' }}>{conn?.relation}</strong>
+                        {summary}
                       </p>
                       
                       {req.nodeBio && (
@@ -146,7 +172,23 @@ export default function AdminDashboard() {
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', gap: 12, marginTop: 24, justifyContent: 'flex-end' }}>
+                  <div style={{ display: 'flex', gap: 12, marginTop: 24, justifyContent: 'space-between', alignItems: 'center' }}>
+                    <button
+                      onClick={() => setExpandedRequestId(isExpanded ? null : req.id)}
+                      style={{
+                        padding: '8px 12px',
+                        background: '#181410',
+                        color: '#c49a2a',
+                        border: '1px solid #3a3020',
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        fontSize: 12,
+                      }}
+                    >
+                      {isExpanded ? 'Ocultar detalhes' : 'Ver detalhes'}
+                    </button>
+
                     <button 
                       onClick={() => handleAction(req.id, 'reject')}
                       style={{ padding: '8px 16px', background: 'transparent', color: '#ff6b6b', border: '1px solid #ff6b6b40', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold' }}
@@ -160,6 +202,80 @@ export default function AdminDashboard() {
                       Aprovar
                     </button>
                   </div>
+
+                  {isExpanded && (
+                    <div style={{ marginTop: 20, background: '#181410', borderRadius: 8, border: '1px solid #2a2218', padding: 16 }}>
+                      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                        <div style={{ flex: '1 1 200px' }}>
+                          <span style={{ color: '#5a4e38', fontSize: 10, textTransform: 'uppercase' }}>Genero</span>
+                          <p style={{ color: '#c8b898', margin: '4px 0 0', fontFamily: 'sans-serif' }}>
+                            {formatGender(req.nodeGender) || 'Nao informado'}
+                          </p>
+                        </div>
+                        <div style={{ flex: '1 1 200px' }}>
+                          <span style={{ color: '#5a4e38', fontSize: 10, textTransform: 'uppercase' }}>Nascimento</span>
+                          <p style={{ color: '#c8b898', margin: '4px 0 0', fontFamily: 'sans-serif' }}>
+                            {formatDate(req.nodeBirthDate) || 'Nao informado'}
+                          </p>
+                        </div>
+                        <div style={{ flex: '1 1 200px' }}>
+                          <span style={{ color: '#5a4e38', fontSize: 10, textTransform: 'uppercase' }}>Falecimento</span>
+                          <p style={{ color: '#c8b898', margin: '4px 0 0', fontFamily: 'sans-serif' }}>
+                            {formatDate(req.nodeDeathDate) || 'Nao informado'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: 16 }}>
+                        <span style={{ color: '#5a4e38', fontSize: 10, textTransform: 'uppercase' }}>Biografia</span>
+                        <p style={{ color: '#c8b898', margin: '6px 0 0', fontFamily: 'sans-serif', fontSize: 13 }}>
+                          {req.nodeBio || 'Nao informado'}
+                        </p>
+                      </div>
+
+                      <div style={{ marginTop: 16 }}>
+                        <span style={{ color: '#5a4e38', fontSize: 10, textTransform: 'uppercase' }}>Nota do usuario</span>
+                        <p style={{ color: '#c8b898', margin: '6px 0 0', fontFamily: 'sans-serif', fontSize: 13 }}>
+                          {req.userNote || 'Sem nota'}
+                        </p>
+                      </div>
+
+                      <div style={{ marginTop: 16 }}>
+                        <span style={{ color: '#5a4e38', fontSize: 10, textTransform: 'uppercase' }}>Conexoes solicitadas</span>
+                        {req.connections.length === 0 ? (
+                          <p style={{ color: '#5a4e38', margin: '6px 0 0', fontFamily: 'sans-serif', fontSize: 13 }}>
+                            Nenhuma conexao solicitada.
+                          </p>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                            {req.connections.map((connection) => (
+                              <div
+                                key={connection.id}
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  background: '#111009',
+                                  borderRadius: 6,
+                                  border: '1px solid #2a2218',
+                                  padding: '8px 12px',
+                                  fontFamily: 'sans-serif',
+                                  fontSize: 13,
+                                  color: '#c8b898',
+                                }}
+                              >
+                                <span>{connection.globalNode.name}</span>
+                                <span style={{ color: '#c49a2a' }}>{connection.relation}</span>
+                                <span style={{ color: '#8a7856', fontSize: 12 }}>
+                                  {connection.newNodeIsFrom ? 'Novo no -> alvo' : 'Alvo -> novo no'}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}

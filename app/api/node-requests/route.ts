@@ -18,12 +18,61 @@ export async function POST(request: Request) {
 
     // 2. Lê o corpo da requisição uma única vez
     const body = await request.json();
-    const { nodeData, connectionData } = body;
+    const { nodeData, connectionData, connections } = body as {
+      nodeData?: {
+        name?: string;
+        gender?: string | null;
+        birthDate?: string | null;
+        deathDate?: string | null;
+        bio?: string | null;
+        userNote?: string | null;
+      };
+      connectionData?: {
+        globalNodeId?: string;
+        relation?: string;
+        newNodeIsFrom?: boolean;
+      };
+      connections?: Array<{
+        targetNodeId: string;
+        relation: string;
+        newNodeIsFrom?: boolean;
+      }>;
+    };
 
     // 3. Validação básica dos dados do formulário
-    if (!nodeData?.name || !connectionData?.globalNodeId || !connectionData?.relation) {
+    if (!nodeData?.name) {
       return NextResponse.json(
-        { error: 'Dados incompletos. Faltam informações do nó ou da conexão.' },
+        { error: 'Dados incompletos. O nome do nó é obrigatório.' },
+        { status: 400 }
+      );
+    }
+
+    const normalizedConnections = Array.isArray(connections)
+      ? connections
+      : connectionData?.globalNodeId && connectionData?.relation
+        ? [
+            {
+              targetNodeId: connectionData.globalNodeId,
+              relation: connectionData.relation,
+              newNodeIsFrom: connectionData.newNodeIsFrom ?? false,
+            },
+          ]
+        : [];
+
+    if (normalizedConnections.length > 10) {
+      return NextResponse.json(
+        { error: 'Máximo de 10 conexões permitidas por solicitação.' },
+        { status: 400 }
+      );
+    }
+
+    const hasInvalidConnection = normalizedConnections.some(
+      (conn) => !conn.targetNodeId || !conn.relation
+    );
+
+    if (hasInvalidConnection) {
+      return NextResponse.json(
+        { error: 'Dados incompletos nas conexões selecionadas.' },
         { status: 400 }
       );
     }
@@ -38,14 +87,15 @@ export async function POST(request: Request) {
         nodeDeathDate: nodeData.deathDate ? new Date(nodeData.deathDate) : null,
         nodeBio: nodeData.bio || null,
         userNote: nodeData.userNote || null,
-        
-        connections: {
-          create: {
-            globalNodeId: connectionData.globalNodeId,
-            relation: connectionData.relation,
-            newNodeIsFrom: connectionData.newNodeIsFrom ?? false, 
-          }
-        }
+        connections: normalizedConnections.length
+          ? {
+              create: normalizedConnections.map((conn) => ({
+                globalNodeId: conn.targetNodeId,
+                relation: conn.relation,
+                newNodeIsFrom: conn.newNodeIsFrom ?? false,
+              })),
+            }
+          : undefined,
       },
       include: {
         connections: true, 

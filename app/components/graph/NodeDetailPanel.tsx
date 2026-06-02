@@ -8,7 +8,7 @@ import type { PersonNodeData } from './nodes/PersonNode';
 type Props = {
   node: (PersonNodeData & { id: string }) | null;
   onClose: () => void;
-  onRequestConnection?: (nodeId: string) => void;
+  onRequestConnection?: (node: { id: string; name: string }) => void;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -217,8 +217,8 @@ export default function NodeDetailPanel({ node, onClose, onRequestConnection }: 
           {/* ── Rodapé ── */}
           <div style={{ padding: '16px 20px', borderTop: '1px solid #2a2218' }}>
             <GhostButton
-              onClick={() => onRequestConnection?.(node.id)}
-              label="Solicitar conexão com este membro →"
+              onClick={() => onRequestConnection?.({ id: node.id, name: node.name })}
+              label="Solicitar novo nó →"
             />
           </div>
         </>

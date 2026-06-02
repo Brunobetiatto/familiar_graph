@@ -1,0 +1,305 @@
+/* app/page.module.css */
+
+.container {
+  position: relative; /* Necessário para ancorar a linha do grafo global */
+  background-color: #0f0d0b;
+  color: #f0e6d3;
+  font-family: "DM Serif Display", Georgia, serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Fundo com textura de grafo sutil - movido para z-index baixo */
+.starryBackground {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    radial-gradient(circle at 50% 50%, rgba(26, 22, 17, 0.8) 0%, #0f0d0b 80%),
+    url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='20' cy='20' r='2' fill='%23c49a2a' fill-opacity='0.15'/%3E%3Ccircle cx='80' cy='50' r='2' fill='%23c49a2a' fill-opacity='0.15'/%3E%3Ccircle cx='40' cy='90' r='2' fill='%23c49a2a' fill-opacity='0.15'/%3E%3Cpath d='M20 20 L80 50 L40 90 Z' stroke='%23c49a2a' stroke-width='0.5' stroke-opacity='0.08' fill='none'/%3E%3C/svg%3E");
+  z-index: 1; /* Abaixo do círculo brilhante e do conteúdo */
+  pointer-events: none;
+}
+
+/* ─── TELA 1: Hero Section (A luz nasce aqui) ─── */
+.heroSection {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  z-index: 10; /* Conteúdo Hero e círculo acima do fundo */
+}
+
+.glowingCircle {
+  position: absolute;
+  width: 1000px;
+  height: 1000px;
+  border-radius: 90%;
+  
+  /* Fade perfeito terminando exatamente na cor do background do site com 0% de opacidade */
+  background: radial-gradient(
+    circle, 
+    rgba(196, 154, 42, 0.15) 0%, 
+    rgba(196, 154, 42, 0.08) 30%, 
+    rgba(15, 13, 11, 0) 70% /* O hex #0f0d0b totalmente transparente */
+  );
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  pointer-events: none;
+}
+.heroContent {
+  position: relative;
+  z-index: 20; /* Texto acima de tudo */
+  text-align: center;
+  max-width: 600px;
+  padding: 20px;
+}
+
+.heroTitle {
+  font-size: 64px;
+  color: #c49a2a;
+  margin: 0 0 16px 0;
+  letter-spacing: 0.02em;
+}
+
+.heroDescription {
+  font-size: 18px;
+  color: #c8b898;
+  line-height: 1.6;
+  margin-bottom: 40px;
+  font-family: sans-serif;
+}
+
+.hoverBtn {
+  display: inline-block;
+  padding: 14px 36px;
+  background-color: #c49a2a;
+  color: #0f0d0b;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 16px;
+  font-family: sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: transform 0.2s, background-color 0.2s, box-shadow 0.2s;
+}
+
+.hoverBtn:hover {
+  transform: scale(1.05);
+  background-color: #dcb038;
+  box-shadow: 0 0 20px rgba(196, 154, 42, 0.4);
+}
+
+/* ─── FIO E PULSAÇÃO DO GRAFO (Começa no final do Hero) ─── */
+
+.globalWireContainer {
+  position: absolute;
+  top: 100vh; /* Nasce exatamente no final da primeira tela */
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  z-index: 5; /* Fio visível mas atrás dos textos zig-zag */
+  overflow: hidden; /* Importante para a pulsação */
+}
+
+/* O Fio base semi-transparente */
+.globalWireBase {
+  position: absolute;
+  inset: 0;
+  background: rgba(196, 154, 42, 0.15);
+}
+
+/* A Pulsação (Onda de energia viajando diretamente no fio) */
+/* A Pulsação (Onda de energia viajando diretamente no fio) */
+/* O Fio base - agora com animação de brilho */
+.globalWireBase {
+  position: absolute;
+  inset: 0;
+  background: rgba(196, 154, 42, 0.15);
+}
+
+/* A Pulsação (intensidade de luz viajando PELO fio, não EM CIMA) */
+/* A Pulsação (Onda se propagando pelo fio) */
+.globalWirePulse {
+  position: absolute;
+  inset: 0;
+  
+  /* Gradiente linear com fade progressivo correto */
+  background: 
+    linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(196, 154, 42, 0.2) 15%,
+      rgba(196, 154, 42, 0.6) 25%,
+      rgba(196, 154, 42, 0.9) 30%,
+      rgba(196, 154, 42, 0.7) 40%,
+      rgba(196, 154, 42, 0.5) 55%,
+      rgba(196, 154, 42, 0.3) 70%,
+      rgba(196, 154, 42, 0.15) 85%,
+      transparent 100%
+    );
+  
+  background-size: 100% 2500px;
+  background-repeat: no-repeat;
+  
+  mix-blend-mode: screen;
+  filter: blur(3px);
+  
+  animation: wavePropagate 5s ease-in-out infinite;
+}
+
+@keyframes wavePropagate {
+  0% {
+    background-position: 0 -2500px;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    background-position: 0 calc(100% + 2500px);
+    opacity: 0;
+  }
+}
+/* ─── TELA 2: Conteúdo Zig-Zag (z-index alto para ficar acima do fio) ─── */
+.contentSection {
+  position: relative;
+  padding: 100px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 120px;
+  z-index: 15; /* Para o texto e imagem ficarem acima do fio global */
+}
+
+.zigZagRow, .zigZagRowReverse {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 60px;
+}
+
+.zigZagRowReverse {
+  flex-direction: row-reverse;
+}
+
+/* Os Nós (Pontos centrais do Grafo) conectando as seções */
+.zigZagRow::before, .zigZagRowReverse::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  background-color: #0f0d0b;
+  border: 3px solid #c49a2a;
+  border-radius: 50%;
+  box-shadow: 0 0 15px rgba(196, 154, 42, 0.8);
+  z-index: 2;
+}
+
+/* Arestas (Linhas horizontais) conectando o nó central à imagem e texto */
+.zigZagRow::after, .zigZagRowReverse::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 60px; /* Preenche perfeitamente o gap de 60px entre imagem e texto */
+  height: 2px;
+  background: rgba(196, 154, 42, 0.4);
+  z-index: 1;
+}
+
+.textContainer {
+  flex: 1;
+  background: rgba(15, 13, 11, 0.75); /* Fundo sutil para o texto ficar legível */
+  padding: 24px;
+  border-radius: 12px;
+  position: relative;
+  z-index: 3;
+}
+
+.sectionTitle {
+  color: #c49a2a;
+  font-size: 36px;
+  margin-bottom: 16px;
+}
+
+.sectionText {
+  color: #a89878;
+  font-family: sans-serif;
+  line-height: 1.7;
+  font-size: 16px;
+}
+
+.zigZagImage {
+  flex: 1;
+  height: 400px;
+  background-color: #1a1611;
+  border-radius: 16px;
+  border: 1px solid #3a3020;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  z-index: 3;
+}
+
+/* Imagens Específicas e Sombras Direcionais */
+.img1 {
+  background-image: url('https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=800&auto=format&fit=crop');
+  box-shadow: 20px 20px 60px rgba(0,0,0,0.5);
+}
+
+.img2 {
+  background-image: url('https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=800&auto=format&fit=crop');
+  box-shadow: -20px 20px 60px rgba(0,0,0,0.5);
+}
+
+.img3 {
+  background-image: url('https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?q=80&w=800&auto=format&fit=crop');
+  box-shadow: 20px 20px 60px rgba(0,0,0,0.5);
+}
+
+/* ─── Footer ─── */
+.footer {
+  border-top: 1px solid #2a2218;
+  padding: 40px 20px;
+  text-align: center;
+  color: #5a4e38;
+  font-size: 14px;
+  font-family: sans-serif;
+  background: #0f0d0b;
+  position: relative;
+  z-index: 20; /* Footer acima do fio global */
+}
+
+/* ─── Responsividade para Celulares ─── */
+@media (max-width: 768px) {
+  .zigZagRow, .zigZagRowReverse {
+    flex-direction: column !important;
+    text-align: center;
+    gap: 30px;
+  }
+  .zigZagImage {
+    width: 100%;
+    height: 250px !important;
+  }
+  /* Esconde o fio, a pulsação e as linhas do grafo em telas pequenas */
+  .globalWireContainer,
+  .zigZagRow::before, .zigZagRowReverse::before,
+  .zigZagRow::after, .zigZagRowReverse::after {
+    display: none;
+  }
+}
