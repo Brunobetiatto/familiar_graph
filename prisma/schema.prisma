@@ -75,11 +75,26 @@ model PersonTree {
   createdAt DateTime @default(now())
 
   // Relacionamentos
-  user      User         @relation(fields: [userId], references: [id])
-  nodes     PersonNode[]
-  edges     PersonEdge[]
+  user           User                  @relation(fields: [userId], references: [id])
+  nodes          PersonNode[]
+  edges          PersonEdge[]
+  relationLabels PersonRelationLabel[]
 
   @@map("PERSON_TREE")
+}
+
+model PersonRelationLabel {
+  id        String   @id @default(uuid())
+  treeId    String
+  name      String
+  createdAt DateTime @default(now())
+
+  // Relacionamentos
+  tree  PersonTree   @relation(fields: [treeId], references: [id])
+  edges PersonEdge[]
+
+  @@unique([treeId, name])
+  @@map("PERSON_RELATION_LABEL")
 }
 
 model PersonNode {
@@ -101,16 +116,18 @@ model PersonNode {
 }
 
 model PersonEdge {
-  id       String       @id @default(uuid())
-  treeId   String
-  fromId   String
-  toId     String
-  relation RelationType
+  id              String        @id @default(uuid())
+  treeId          String
+  fromId          String
+  toId            String
+  relation        RelationType?
+  relationLabelId String?
 
   // Relacionamentos
-  tree     PersonTree @relation(fields: [treeId], references: [id])
-  fromNode PersonNode @relation("EdgeFrom", fields: [fromId], references: [id])
-  toNode   PersonNode @relation("EdgeTo", fields: [toId], references: [id])
+  tree          PersonTree           @relation(fields: [treeId], references: [id])
+  fromNode      PersonNode           @relation("EdgeFrom", fields: [fromId], references: [id])
+  toNode        PersonNode           @relation("EdgeTo", fields: [toId], references: [id])
+  relationLabel PersonRelationLabel? @relation(fields: [relationLabelId], references: [id])
 
   @@map("PERSON_EDGE")
 }
