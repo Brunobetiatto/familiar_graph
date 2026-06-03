@@ -38,7 +38,7 @@ export default function LoginPage() {
 
       if (isLoginMode) {
         // Se for login e deu sucesso, redireciona
-        router.push('/global-graph');
+        router.push('/graph-choice');
         router.refresh();
       } else {
         // Se for registro, avisa sucesso e muda para a aba de login

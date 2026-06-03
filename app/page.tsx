@@ -34,7 +34,7 @@ export default function HomePage() {
             Mapeie conexões invisíveis. O Familiar Graph é uma plataforma colaborativa projetada para visualizar e expandir redes sociais, profissionais e genealógicas em um ambiente global único.
           </p>
           
-          <Link href="/login" className={styles.hoverBtn}>
+          <Link href="/graph-choice" className={styles.hoverBtn}>
             Acessar a Plataforma
           </Link>
         </div>
