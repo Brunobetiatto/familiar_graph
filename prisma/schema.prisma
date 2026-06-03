@@ -160,6 +160,7 @@ model NodeRequestConn {
   globalNodeId  String
   relation      RelationType
   newNodeIsFrom Boolean
+  description   String?      @db.Text
 
   // Relacionamentos
   request       NodeRequest @relation(fields: [requestId], references: [id])
@@ -192,6 +193,7 @@ model GlobalEdge {
   fromId      String
   toId        String
   relation    RelationType
+  description String?      @db.Text
   createdById String
 
   // Relacionamentos

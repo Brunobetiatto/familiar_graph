@@ -67,6 +67,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           fromId: connection.newNodeIsFrom ? officialNode.id : connection.globalNodeId,
           toId: connection.newNodeIsFrom ? connection.globalNodeId : officialNode.id,
           relation: connection.relation,
+          description: connection.description,
           createdById: nodeRequest.userId,
         }));
 
@@ -76,21 +77,26 @@ export async function POST(request: Request): Promise<NextResponse> {
               fromId: edge.fromId,
               toId: edge.toId,
               relation: edge.relation,
+              description: edge.description,
             })),
           },
           select: {
             fromId: true,
             toId: true,
             relation: true,
+            description: true,
           },
         });
 
         const existingKey = new Set(
-          existingEdges.map((edge) => `${edge.fromId}-${edge.toId}-${edge.relation}`)
+          existingEdges.map(
+            (edge) => `${edge.fromId}-${edge.toId}-${edge.relation}-${edge.description ?? ''}`
+          )
         );
 
         const newEdges = edgesToCreate.filter(
-          (edge) => !existingKey.has(`${edge.fromId}-${edge.toId}-${edge.relation}`)
+          (edge) =>
+            !existingKey.has(`${edge.fromId}-${edge.toId}-${edge.relation}-${edge.description ?? ''}`)
         );
 
         if (newEdges.length > 0) {

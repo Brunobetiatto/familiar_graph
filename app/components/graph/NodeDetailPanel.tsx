@@ -7,8 +7,19 @@ import type { PersonNodeData } from './nodes/PersonNode';
 
 type Props = {
   node: (PersonNodeData & { id: string }) | null;
+  connections: NodeConnection[];
+  selectedEdgeId: string | null;
   onClose: () => void;
+  onSelectConnection: (edgeId: string) => void;
   onRequestConnection?: (node: { id: string; name: string }) => void;
+};
+
+type NodeConnection = {
+  edgeId: string;
+  otherNodeName: string;
+  directionLabel: string;
+  relation: string;
+  description: string | null;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -39,7 +50,14 @@ function getInitials(name: string): string {
 
 // ─── Componente ───────────────────────────────────────────────────────────────
 
-export default function NodeDetailPanel({ node, onClose, onRequestConnection }: Props) {
+export default function NodeDetailPanel({
+  node,
+  connections,
+  selectedEdgeId,
+  onClose,
+  onSelectConnection,
+  onRequestConnection,
+}: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Fecha ao pressionar Escape
@@ -52,6 +70,7 @@ export default function NodeDetailPanel({ node, onClose, onRequestConnection }: 
   }, [onClose]);
 
   const visible = node !== null;
+  const selectedConnection = connections.find((connection) => connection.edgeId === selectedEdgeId);
 
   return (
     <div
@@ -64,9 +83,11 @@ export default function NodeDetailPanel({ node, onClose, onRequestConnection }: 
         right: 0,
         height: '100%',
         width: 300,
+        maxWidth: '100vw',
         zIndex: 20,
         display: 'flex',
         flexDirection: 'column',
+        overflow: 'hidden',
         background: '#111009',
         borderLeft: '1px solid #3a3020',
         boxShadow: '-8px 0 40px rgba(0,0,0,0.5)',
@@ -126,6 +147,7 @@ export default function NodeDetailPanel({ node, onClose, onRequestConnection }: 
               alignItems: 'center',
               padding: '28px 20px 20px',
               borderBottom: '1px solid #2a2218',
+              minHeight: 0,
             }}
           >
             <div
@@ -158,6 +180,11 @@ export default function NodeDetailPanel({ node, onClose, onRequestConnection }: 
                 textAlign: 'center',
                 lineHeight: 1.3,
                 margin: 0,
+                maxWidth: '100%',
+                overflow: 'hidden',
+                display: '-webkit-box',
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: 'vertical',
               }}
             >
               {node.name}
@@ -174,11 +201,13 @@ export default function NodeDetailPanel({ node, onClose, onRequestConnection }: 
           <div
             style={{
               flex: 1,
+              minHeight: 0,
               overflowY: 'auto',
+              overflowX: 'hidden',
               padding: '20px',
               display: 'flex',
               flexDirection: 'column',
-              gap: 18,
+              gap: 14,
             }}
           >
             {formatDate(node.birthDate) && (
@@ -201,16 +230,174 @@ export default function NodeDetailPanel({ node, onClose, onRequestConnection }: 
                 >
                   Biografia
                 </p>
-                <p style={{ color: '#9a8a6a', fontSize: 13, lineHeight: 1.65, margin: 0 }}>
+                <p
+                  style={{
+                    color: '#9a8a6a',
+                    fontSize: 13,
+                    lineHeight: 1.65,
+                    margin: 0,
+                    overflow: 'hidden',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 7,
+                    WebkitBoxOrient: 'vertical',
+                  }}
+                >
                   {node.bio}
                 </p>
               </div>
             )}
 
-            {!node.bio && !node.birthDate && !node.deathDate && (
+            {!node.bio && !node.birthDate && !node.deathDate && connections.length === 0 && (
               <p style={{ color: '#3a3020', fontSize: 13, fontStyle: 'italic' }}>
                 Sem informações adicionais.
               </p>
+            )}
+
+            <div>
+              <p
+                style={{
+                  color: '#5a4e38',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.1em',
+                  marginBottom: 8,
+                }}
+              >
+                Conexoes
+              </p>
+
+              {connections.length === 0 ? (
+                <p style={{ color: '#3a3020', fontSize: 13, fontStyle: 'italic', margin: 0 }}>
+                  Nenhuma conexao registrada.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {connections.map((connection) => {
+                    const selected = selectedEdgeId === connection.edgeId;
+
+                    return (
+                      <button
+                        key={connection.edgeId}
+                        type="button"
+                        onClick={() => onSelectConnection(connection.edgeId)}
+                        style={{
+                          width: '100%',
+                          textAlign: 'left',
+                          padding: '10px 12px',
+                          background: selected ? '#221b0f' : '#181410',
+                          border: selected ? '1px solid #c49a2a' : '1px solid #2a2218',
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                          fontFamily: 'sans-serif',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <span
+                          style={{
+                            display: 'block',
+                            color: '#f0e6d3',
+                            fontSize: 13,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {connection.otherNodeName}
+                        </span>
+                        <span
+                          style={{
+                            display: 'block',
+                            color: '#c49a2a',
+                            fontSize: 12,
+                            marginTop: 4,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {connection.relation} · {connection.directionLabel}
+                        </span>
+                        {connection.description && (
+                          <span
+                            style={{
+                              display: '-webkit-box',
+                              color: '#9a8a6a',
+                              fontSize: 12,
+                              lineHeight: 1.45,
+                              marginTop: 8,
+                              overflow: 'hidden',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                            }}
+                          >
+                            {connection.description}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {selectedConnection && (
+              <div
+                style={{
+                  background: '#181410',
+                  border: '1px solid #3a3020',
+                  borderRadius: 8,
+                  padding: 12,
+                  fontFamily: 'sans-serif',
+                }}
+              >
+                <p
+                  style={{
+                    color: '#5a4e38',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.1em',
+                    margin: '0 0 8px',
+                  }}
+                >
+                  Descricao completa
+                </p>
+                <p
+                  style={{
+                    color: '#c49a2a',
+                    fontSize: 12,
+                    margin: '0 0 8px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {selectedConnection.otherNodeName} · {selectedConnection.relation}
+                </p>
+                <textarea
+                  readOnly
+                  value={selectedConnection.description || 'Sem descricao registrada.'}
+                  style={{
+                    width: '100%',
+                    minHeight: 180,
+                    maxHeight: 280,
+                    padding: '10px 12px',
+                    background: '#0f0d0b',
+                    border: '1px solid #2a2218',
+                    borderRadius: 6,
+                    color: '#c8b898',
+                    fontSize: 13,
+                    lineHeight: 1.6,
+                    fontFamily: 'sans-serif',
+                    resize: 'none',
+                    outline: 'none',
+                    overflowY: 'auto',
+                    overflowX: 'hidden',
+                    whiteSpace: 'pre-wrap',
+                  }}
+                />
+              </div>
             )}
           </div>
 
@@ -244,7 +431,9 @@ function InfoRow({ label, value }: { label: string; value: string }) {
       >
         {label}
       </p>
-      <p style={{ color: '#c8b898', fontSize: 13, margin: 0 }}>{value}</p>
+      <p style={{ color: '#c8b898', fontSize: 13, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        {value}
+      </p>
     </div>
   );
 }

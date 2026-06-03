@@ -7,6 +7,7 @@ type Connection = {
   targetNodeName: string;
   relation: string;
   newNodeIsFrom: boolean;
+  description: string;
 };
 
 type Props = {
@@ -64,7 +65,13 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
     }
     setConnections([
       ...connections,
-      { targetNodeId: targetId, targetNodeName: targetName, relation: 'FRIEND', newNodeIsFrom: true },
+      {
+        targetNodeId: targetId,
+        targetNodeName: targetName,
+        relation: 'FRIEND',
+        newNodeIsFrom: true,
+        description: '',
+      },
     ]);
     setSearchQuery('');
     setSearchResults([]);
@@ -95,7 +102,10 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
         birthDate: birthDate ? new Date(birthDate).toISOString() : null,
         bio: bio || null,
       },
-      connections, // Envia a lista completa de conexões
+      connections: connections.map((connection) => ({
+        ...connection,
+        description: connection.description.trim() || null,
+      })),
     };
 
     try {
@@ -133,13 +143,14 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
       style={{
         position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
         backgroundColor: 'rgba(0, 0, 0, 0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 100, fontFamily: '"DM Serif Display", Georgia, serif', padding: 20
+        zIndex: 100, fontFamily: '"DM Serif Display", Georgia, serif', padding: 20, overflow: 'hidden'
       }}
     >
       <div
         style={{
           background: '#111009', border: '1px solid #3a3020', borderRadius: 12, padding: '24px 32px',
-          width: '100%', maxWidth: 700, maxHeight: '90vh', overflowY: 'auto', position: 'relative',
+          width: '100%', maxWidth: 700, height: 'calc(100vh - 40px)', maxHeight: 760, overflowY: 'auto', overflowX: 'hidden', position: 'relative',
+          display: 'flex', flexDirection: 'column',
         }}
       >
         <button
@@ -154,7 +165,7 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
           Crie um nó isolado ou anexe-o a até 5 conexões existentes no Grafo.
         </p>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}>
           
           {/* Seção 1: Dados do Nó */}
           <div style={{ background: '#181410', padding: 16, borderRadius: 8, border: '1px solid #2a2218' }}>
@@ -200,11 +211,11 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
               />
               {/* Resultados do Autocomplete */}
               {searchResults.length > 0 && (
-                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#231d16', border: '1px solid #3a3020', borderRadius: 6, marginTop: 4, zIndex: 10, maxHeight: 150, overflowY: 'auto' }}>
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#231d16', border: '1px solid #3a3020', borderRadius: 6, marginTop: 4, zIndex: 10, maxHeight: 180, overflowY: 'auto', overflowX: 'hidden' }}>
                   {searchResults.map(res => (
                     <div 
                       key={res.id} onClick={() => handleAddConnection(res.id, res.name)}
-                      style={{ padding: '10px 12px', color: '#c8b898', cursor: 'pointer', borderBottom: '1px solid #2a2218', fontFamily: 'sans-serif', fontSize: 13 }}
+                      style={{ padding: '10px 12px', color: '#c8b898', cursor: 'pointer', borderBottom: '1px solid #2a2218', fontFamily: 'sans-serif', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                     >
                       + {res.name}
                     </div>
@@ -216,27 +227,39 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
             {/* Lista de Conexões Selecionadas */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {connections.map((conn) => (
-                <div key={conn.targetNodeId} style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#111009', padding: 12, borderRadius: 6, border: '1px dashed #3a3020' }}>
-                  <span style={{ color: '#c49a2a', flex: 1, fontSize: 14 }}>{conn.targetNodeName}</span>
-                  
-                  {/* Direção da Linha */}
-                  <Select style={{ flex: 1 }} value={conn.newNodeIsFrom ? 'FROM' : 'TO'} onChange={(e: any) => updateConnection(conn.targetNodeId, 'newNodeIsFrom', e.target.value === 'FROM')}>
-                    <option value="FROM">Seta sai do Novo Nó</option>
-                    <option value="TO">Seta chega no Novo Nó</option>
-                  </Select>
+                <div key={conn.targetNodeId} style={{ display: 'flex', flexDirection: 'column', gap: 12, background: '#111009', padding: 12, borderRadius: 6, border: '1px dashed #3a3020' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ color: '#c49a2a', flex: 1, minWidth: 0, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conn.targetNodeName}</span>
+                    
+                    {/* Direção da Linha */}
+                    <Select style={{ flex: 1 }} value={conn.newNodeIsFrom ? 'FROM' : 'TO'} onChange={(e: any) => updateConnection(conn.targetNodeId, 'newNodeIsFrom', e.target.value === 'FROM')}>
+                      <option value="FROM">Seta sai do Novo Nó</option>
+                      <option value="TO">Seta chega no Novo Nó</option>
+                    </Select>
 
-                  {/* Tipo de Relação */}
-                  <Select style={{ flex: 1 }} value={conn.relation} onChange={(e: any) => updateConnection(conn.targetNodeId, 'relation', e.target.value)}>
-                    <option value="PARENT">Pai/Mãe</option>
-                    <option value="CHILD">Filho(a)</option>
-                    <option value="SPOUSE">Cônjuge</option>
-                    <option value="FRIEND">Amigo(a)</option>
-                    <option value="TEAMMATE">Colega de Equipe</option>
-                  </Select>
+                    {/* Tipo de Relação */}
+                    <Select style={{ flex: 1 }} value={conn.relation} onChange={(e: any) => updateConnection(conn.targetNodeId, 'relation', e.target.value)}>
+                      <option value="PARENT">Pai/Mãe</option>
+                      <option value="CHILD">Filho(a)</option>
+                      <option value="SPOUSE">Cônjuge</option>
+                      <option value="FRIEND">Amigo(a)</option>
+                      <option value="TEAMMATE">Colega de Equipe</option>
+                    </Select>
 
-                  <button type="button" onClick={() => handleRemoveConnection(conn.targetNodeId)} style={{ background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer', fontSize: 16 }}>
-                    🗑️
-                  </button>
+                    <button type="button" onClick={() => handleRemoveConnection(conn.targetNodeId)} style={{ background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer', fontSize: 16 }}>
+                      🗑️
+                    </button>
+                  </div>
+
+                  <div>
+                    <Label>Como essa conexão aconteceu</Label>
+                    <textarea
+                      value={conn.description}
+                      onChange={(e: any) => updateConnection(conn.targetNodeId, 'description', e.target.value)}
+                      placeholder="Ex: Trabalharam juntos no mesmo projeto em 2021."
+                      style={{ ...inputStyle, minHeight: 54, maxHeight: 120, resize: 'none', overflowY: 'auto' }}
+                    />
+                  </div>
                 </div>
               ))}
             </div>

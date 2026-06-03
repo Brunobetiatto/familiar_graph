@@ -18,6 +18,7 @@ interface GlobalNodeData extends Record<string, unknown> {
 
 interface GlobalEdgeData extends Record<string, unknown> {
   relation: string;
+  description: string | null;
 }
 
 interface GlobalGraphNode {
@@ -35,6 +36,7 @@ interface GlobalGraphEdge {
   fromId: string;
   toId: string;
   relation: string;
+  description: string | null;
 }
 
 // Garante que a página sempre retorna dados frescos (sem cache estático)
@@ -76,7 +78,10 @@ export default async function GlobalGraphPage() {
     target: edge.toId,    // React Flow: para onde vai
     label: edge.relation, // Exibe PARENT, SPOUSE, etc. sobre a aresta
     type: 'smoothstep', 
-    data: { relation: edge.relation },
+    data: {
+      relation: edge.relation,
+      description: edge.description,
+    },
   }));
 
   return <GlobalGraphFlow initialNodes={nodes} initialEdges={edges} />;

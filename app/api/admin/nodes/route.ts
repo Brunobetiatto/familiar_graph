@@ -14,6 +14,7 @@ interface ConnectionData {
   newNodeIsFrom: boolean;
   targetNodeId: string;
   relation: string;
+  description?: string | null;
 }
 
 interface CreateNodeBody {
@@ -65,6 +66,7 @@ export async function POST(request: Request) {
           fromId: conn.newNodeIsFrom ? newGlobalNode.id : conn.targetNodeId,
           toId: conn.newNodeIsFrom ? conn.targetNodeId : newGlobalNode.id,
           relation: conn.relation,
+          description: conn.description?.trim() || null,
           createdById: userId,
         }));
 

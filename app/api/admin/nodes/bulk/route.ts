@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
+import type { Prisma } from '@prisma/client';
 
 export async function POST(request: Request) {
   try {
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
     }
 
     // 2. Transação: Garante que tudo é salvo ou tudo é cancelado se der erro
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       
       const idMap = new Map<string, string>(); // Mapeia o tempId para o ID real do banco
       const createdNodes = [];
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
             fromId,
             toId,
             relation: edge.relation,
+            description: edge.description?.trim() || null,
             createdById: userId,
           };
         });

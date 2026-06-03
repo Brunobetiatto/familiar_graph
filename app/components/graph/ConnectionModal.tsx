@@ -29,6 +29,7 @@ export default function ConnectionModal({ isOpen, onClose, targetNodeId, targetN
   const [birthDate, setBirthDate] = useState('');
   const [bio, setBio] = useState('');
   const [userNote, setUserNote] = useState('');
+  const [connectionDescription, setConnectionDescription] = useState('');
   
   // Controle de relacionamento
   const [relationType, setRelationType] = useState<RelationType>('CHILD');
@@ -83,6 +84,7 @@ export default function ConnectionModal({ isOpen, onClose, targetNodeId, targetN
         globalNodeId: targetNodeId,
         relation,
         newNodeIsFrom,
+        description: connectionDescription || null,
       },
     };
 
@@ -108,6 +110,7 @@ export default function ConnectionModal({ isOpen, onClose, targetNodeId, targetN
         setBirthDate('');
         setBio('');
         setUserNote('');
+        setConnectionDescription('');
       }, 2000);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao enviar solicitação.';
@@ -126,6 +129,8 @@ export default function ConnectionModal({ isOpen, onClose, targetNodeId, targetN
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         zIndex: 50,
         fontFamily: '"DM Serif Display", Georgia, serif',
+        padding: 20,
+        overflow: 'hidden',
       }}
     >
       <div
@@ -136,6 +141,9 @@ export default function ConnectionModal({ isOpen, onClose, targetNodeId, targetN
           padding: '24px 32px',
           width: '100%',
           maxWidth: 500,
+          maxHeight: 'calc(100vh - 40px)',
+          overflowY: 'auto',
+          overflowX: 'hidden',
           boxShadow: '0 20px 40px rgba(0,0,0,0.8)',
           position: 'relative',
         }}
@@ -166,7 +174,7 @@ export default function ConnectionModal({ isOpen, onClose, targetNodeId, targetN
             <p style={{ fontSize: 14 }}>Ela será analisada por um administrador.</p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             
             {/* Nome e Parentesco */}
             <div style={{ display: 'flex', gap: 16 }}>
@@ -216,11 +224,21 @@ export default function ConnectionModal({ isOpen, onClose, targetNodeId, targetN
               <Label>Biografia Curta</Label>
               <textarea
                 value={bio} onChange={(e) => setBio(e.target.value)}
-                style={{ ...inputStyle, minHeight: 60, resize: 'vertical' }}
+                style={{ ...inputStyle, minHeight: 54, maxHeight: 120, resize: 'none', overflowY: 'auto' }}
               />
             </div>
 
             {/* Nota para o admin */}
+            <div>
+              <Label>Como essa conexão aconteceu</Label>
+              <textarea
+                value={connectionDescription}
+                onChange={(e) => setConnectionDescription(e.target.value)}
+                placeholder="Ex: Foram vizinhos durante a infância e as famílias mantiveram contato."
+                style={{ ...inputStyle, minHeight: 54, maxHeight: 120, resize: 'none', overflowY: 'auto' }}
+              />
+            </div>
+
             <div>
               <Label>Nota para o Administrador</Label>
               <Input

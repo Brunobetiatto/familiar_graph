@@ -22,7 +22,53 @@
 }
 
 body {
+  margin: 0;
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+
+html {
+  scrollbar-width: none;
+}
+
+* {
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}
+
+.react-flow__controls {
+  background: #1a1410;
+  border: 1px solid #3a3020;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.react-flow__controls-button {
+  width: 34px;
+  height: 34px;
+  background: #181410;
+  border-bottom: 1px solid #3a3020;
+  color: #c8b898;
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: 0;
+}
+
+.react-flow__controls-button:hover {
+  background: #221b0f;
+  color: #c49a2a;
+}
+
+.react-flow__controls-button svg {
+  fill: currentColor;
+  stroke: currentColor;
 }

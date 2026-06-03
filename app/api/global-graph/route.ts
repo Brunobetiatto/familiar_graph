@@ -29,6 +29,10 @@ interface ReactFlowEdge {
   source: string;
   target: string;
   label: DbEdge['relation'];
+  data: {
+    relation: DbEdge['relation'];
+    description: DbEdge['description'];
+  };
 }
 
 interface PostBody {
@@ -66,7 +70,10 @@ export async function GET() {
       source: edge.fromId, // React Flow exige 'source' (de onde sai)
       target: edge.toId,   // React Flow exige 'target' (para onde vai)
       label: edge.relation, // Exibe o tipo de relação na linha (PARENT, SPOUSE, etc)
-      // data: { relation: edge.relation } // Opcional, se quiser passar dados extras na aresta
+      data: {
+        relation: edge.relation,
+        description: edge.description,
+      },
     }));
 
     // 5. Retorna o objeto completo pronto para o frontend consumir

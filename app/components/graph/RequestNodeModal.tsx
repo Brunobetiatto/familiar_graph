@@ -24,6 +24,7 @@ type Connection = {
   targetNodeName: string;
   relation: RelationType;
   newNodeIsFrom: boolean;
+  description: string;
 };
 
 type Props = {
@@ -81,6 +82,7 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
             targetNodeName: initialConnection.name,
             relation: 'FRIEND',
             newNodeIsFrom: true,
+            description: '',
           },
         ];
       });
@@ -138,7 +140,13 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
 
     setConnections((prev) => [
       ...prev,
-      { targetNodeId: id, targetNodeName: nameValue, relation: 'FRIEND', newNodeIsFrom: true },
+      {
+        targetNodeId: id,
+        targetNodeName: nameValue,
+        relation: 'FRIEND',
+        newNodeIsFrom: true,
+        description: '',
+      },
     ]);
     setSearchQuery('');
     setSearchResults([]);
@@ -174,6 +182,7 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
         targetNodeId: conn.targetNodeId,
         relation: conn.relation,
         newNodeIsFrom: conn.newNodeIsFrom,
+        description: conn.description.trim() || null,
       })),
     };
 
@@ -217,6 +226,7 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
         zIndex: 100,
         fontFamily: '"DM Serif Display", Georgia, serif',
         padding: 20,
+        overflow: 'hidden',
       }}
     >
       <div
@@ -227,9 +237,13 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
           padding: '24px 32px',
           width: '100%',
           maxWidth: 760,
-          maxHeight: '90vh',
+          height: 'calc(100vh - 40px)',
+          maxHeight: 780,
           overflowY: 'auto',
+          overflowX: 'hidden',
           position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
         <button
@@ -268,7 +282,7 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
             <p style={{ fontSize: 14 }}>Ela sera analisada por um administrador.</p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}>
             <div style={{ background: '#181410', padding: 16, borderRadius: 8, border: '1px solid #2a2218' }}>
               <h3
                 style={{
@@ -314,7 +328,7 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
                 <textarea
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  style={{ ...inputStyle, minHeight: 70, resize: 'vertical' }}
+                  style={{ ...inputStyle, minHeight: 58, maxHeight: 120, resize: 'none', overflowY: 'auto' }}
                 />
               </div>
 
@@ -360,8 +374,9 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
                       borderRadius: 6,
                       marginTop: 4,
                       zIndex: 10,
-                      maxHeight: 150,
+                      maxHeight: 180,
                       overflowY: 'auto',
+                      overflowX: 'hidden',
                     }}
                   >
                     {searchResults.map((res) => (
@@ -375,6 +390,9 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
                           borderBottom: '1px solid #2a2218',
                           fontFamily: 'sans-serif',
                           fontSize: 13,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         + {res.name}
@@ -396,7 +414,7 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
                     key={conn.targetNodeId}
                     style={{
                       display: 'flex',
-                      alignItems: 'center',
+                      flexDirection: 'column',
                       gap: 12,
                       background: '#111009',
                       padding: 12,
@@ -404,40 +422,54 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
                       border: '1px dashed #3a3020',
                     }}
                   >
-                    <span style={{ color: '#c49a2a', flex: 1, fontSize: 14 }}>{conn.targetNodeName}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
+                      <span style={{ color: '#c49a2a', flex: 1, minWidth: 0, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conn.targetNodeName}</span>
 
-                    <Select
-                      style={{ flex: 1 }}
-                      value={conn.newNodeIsFrom ? 'FROM' : 'TO'}
-                      onChange={(e) =>
-                        updateConnection(conn.targetNodeId, 'newNodeIsFrom', e.target.value === 'FROM')
-                      }
-                    >
-                      <option value="FROM">Seta sai do novo no</option>
-                      <option value="TO">Seta chega no novo no</option>
-                    </Select>
+                      <Select
+                        style={{ flex: 1 }}
+                        value={conn.newNodeIsFrom ? 'FROM' : 'TO'}
+                        onChange={(e) =>
+                          updateConnection(conn.targetNodeId, 'newNodeIsFrom', e.target.value === 'FROM')
+                        }
+                      >
+                        <option value="FROM">Seta sai do novo no</option>
+                        <option value="TO">Seta chega no novo no</option>
+                      </Select>
 
-                    <Select
-                      style={{ flex: 1 }}
-                      value={conn.relation}
-                      onChange={(e) =>
-                        updateConnection(conn.targetNodeId, 'relation', e.target.value as RelationType)
-                      }
-                    >
-                      {RELATION_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </Select>
+                      <Select
+                        style={{ flex: 1 }}
+                        value={conn.relation}
+                        onChange={(e) =>
+                          updateConnection(conn.targetNodeId, 'relation', e.target.value as RelationType)
+                        }
+                      >
+                        {RELATION_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </Select>
 
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveConnection(conn.targetNodeId)}
-                      style={{ background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer', fontSize: 16 }}
-                    >
-                      🗑️
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveConnection(conn.targetNodeId)}
+                        style={{ background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer', fontSize: 16 }}
+                      >
+                        🗑️
+                      </button>
+                    </div>
+
+                    <div style={{ width: '100%' }}>
+                      <Label>Como essa conexao aconteceu</Label>
+                      <textarea
+                        value={conn.description}
+                        onChange={(e) =>
+                          updateConnection(conn.targetNodeId, 'description', e.target.value)
+                        }
+                        placeholder="Ex: Conheceram-se na escola em 1998 e mantiveram contato pela familia."
+                        style={{ ...inputStyle, minHeight: 54, maxHeight: 120, resize: 'none', overflowY: 'auto' }}
+                      />
+                    </div>
                   </div>
                 ))}
               </div>

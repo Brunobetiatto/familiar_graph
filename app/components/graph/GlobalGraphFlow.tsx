@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   ReactFlow,
@@ -13,7 +13,9 @@ import {
   MarkerType,
   type Node,
   type Edge,
+  type EdgeMouseHandler,
   type NodeMouseHandler,
+  type ReactFlowInstance,
 } from '@xyflow/react';
 
 import PersonNode, { type PersonNodeData } from './nodes/PersonNode';
@@ -48,13 +50,32 @@ type Props = {
   initialEdges: Edge[];
 };
 
+type EdgeData = {
+  relation?: string;
+  description?: string | null;
+  elkPoints?: Array<{ x: number; y: number }>;
+};
+
+type NodeConnection = {
+  edgeId: string;
+  otherNodeName: string;
+  directionLabel: string;
+  relation: string;
+  description: string | null;
+};
+
+const NODE_WIDTH = 200;
+const NODE_HEIGHT = 80;
+
 export default function GlobalGraphFlow({ initialNodes, initialEdges }: Props) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const flowInstanceRef = useRef<ReactFlowInstance<Node, Edge> | null>(null);
 
   const [selectedNodeData, setSelectedNodeData] = useState<
     (PersonNodeData & { id: string }) | null
   >(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
 
   const [layoutReady, setLayoutReady] = useState(false);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
@@ -82,18 +103,22 @@ export default function GlobalGraphFlow({ initialNodes, initialEdges }: Props) {
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const styledEdges = useMemo(
+  const styledEdges = useMemo<Edge[]>(
     () =>
       edges.map((e) => ({
         ...e,
+        selected: e.id === selectedEdgeId,
         type: 'elk',
-        style: EDGE_BASE_STYLE,
+        style:
+          e.id === selectedEdgeId
+            ? { ...EDGE_BASE_STYLE, stroke: '#f2c94c', strokeWidth: 4 }
+            : EDGE_BASE_STYLE,
 
         markerEnd: {
           type: MarkerType.ArrowClosed,
           width: 20,
           height: 20,
-          color: '#c49a2a',
+          color: e.id === selectedEdgeId ? '#f2c94c' : '#c49a2a',
         },
 
         labelStyle: EDGE_LABEL_STYLE,
@@ -102,18 +127,111 @@ export default function GlobalGraphFlow({ initialNodes, initialEdges }: Props) {
         labelBgPadding: [8, 4] as [number, number],
         labelBgBorderRadius: 4,
       })),
-    [edges]
+    [edges, selectedEdgeId]
+  );
+
+  const nodeNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    nodes.forEach((node) => {
+      const data = node.data as Partial<PersonNodeData> & { label?: unknown };
+      map.set(node.id, data.name ?? String(data.label ?? node.id));
+    });
+    return map;
+  }, [nodes]);
+
+  const selectedNodeConnections = useMemo<NodeConnection[]>(() => {
+    if (!selectedNodeData) return [];
+
+    return edges
+      .filter((edge) => edge.source === selectedNodeData.id || edge.target === selectedNodeData.id)
+      .map((edge) => {
+        const edgeData = edge.data as EdgeData | undefined;
+        const isOutgoing = edge.source === selectedNodeData.id;
+        const otherNodeId = isOutgoing ? edge.target : edge.source;
+
+        return {
+          edgeId: edge.id,
+          otherNodeName: nodeNameById.get(otherNodeId) ?? otherNodeId,
+          directionLabel: isOutgoing ? 'Sai deste no' : 'Chega neste no',
+          relation: edgeData?.relation ?? String(edge.label ?? 'Conexao'),
+          description: edgeData?.description ?? null,
+        };
+      });
+  }, [edges, nodeNameById, selectedNodeData]);
+
+  const focusEdge = useCallback(
+    (edgeId: string) => {
+      setSelectedEdgeId(edgeId);
+
+      const edge = edges.find((item) => item.id === edgeId);
+      const flow = flowInstanceRef.current;
+      if (!edge || !flow) return;
+
+      const points = (edge.data as EdgeData | undefined)?.elkPoints;
+      if (points && points.length > 0) {
+        const xs = points.map((point) => point.x);
+        const ys = points.map((point) => point.y);
+        const minX = Math.min(...xs);
+        const minY = Math.min(...ys);
+        const maxX = Math.max(...xs);
+        const maxY = Math.max(...ys);
+
+        flow.fitBounds(
+          {
+            x: minX - 80,
+            y: minY - 80,
+            width: Math.max(maxX - minX + 160, 220),
+            height: Math.max(maxY - minY + 160, 160),
+          },
+          { padding: 0.2, duration: 450 }
+        );
+        return;
+      }
+
+      const sourceNode = nodes.find((node) => node.id === edge.source);
+      const targetNode = nodes.find((node) => node.id === edge.target);
+      if (!sourceNode || !targetNode) return;
+
+      const sourceCenter = {
+        x: sourceNode.position.x + NODE_WIDTH / 2,
+        y: sourceNode.position.y + NODE_HEIGHT / 2,
+      };
+      const targetCenter = {
+        x: targetNode.position.x + NODE_WIDTH / 2,
+        y: targetNode.position.y + NODE_HEIGHT / 2,
+      };
+
+      flow.setCenter(
+        (sourceCenter.x + targetCenter.x) / 2,
+        (sourceCenter.y + targetCenter.y) / 2,
+        { zoom: 1.1, duration: 450 }
+      );
+    },
+    [edges, nodes]
   );
 
   const onNodeClick: NodeMouseHandler<Node> = useCallback(
     (_event, node) => {
       setSelectedNodeData({ id: node.id, ...(node.data as PersonNodeData) });
+      setSelectedEdgeId(null);
     },
     []
   );
 
+  const onEdgeClick: EdgeMouseHandler<Edge> = useCallback(
+    (_event, edge) => {
+      const sourceNode = nodes.find((node) => node.id === edge.source);
+      if (sourceNode) {
+        setSelectedNodeData({ id: sourceNode.id, ...(sourceNode.data as PersonNodeData) });
+      }
+      focusEdge(edge.id);
+    },
+    [focusEdge, nodes]
+  );
+
   const onPaneClick = useCallback(() => {
     setSelectedNodeData(null);
+    setSelectedEdgeId(null);
   }, []);
 
   const handleRequestConnection = useCallback((node: { id: string; name: string }) => {
@@ -262,7 +380,11 @@ export default function GlobalGraphFlow({ initialNodes, initialEdges }: Props) {
         nodeTypes={NODE_TYPES}
         edgeTypes={EDGE_TYPES}
         onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
         onPaneClick={onPaneClick}
+        onInit={(instance) => {
+          flowInstanceRef.current = instance;
+        }}
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable
@@ -303,7 +425,13 @@ export default function GlobalGraphFlow({ initialNodes, initialEdges }: Props) {
 
       <NodeDetailPanel
         node={selectedNodeData}
-        onClose={() => setSelectedNodeData(null)}
+        connections={selectedNodeConnections}
+        selectedEdgeId={selectedEdgeId}
+        onClose={() => {
+          setSelectedNodeData(null);
+          setSelectedEdgeId(null);
+        }}
+        onSelectConnection={focusEdge}
         onRequestConnection={handleRequestConnection}
       />
 

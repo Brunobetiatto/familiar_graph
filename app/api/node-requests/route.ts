@@ -31,11 +31,13 @@ export async function POST(request: Request) {
         globalNodeId?: string;
         relation?: string;
         newNodeIsFrom?: boolean;
+        description?: string | null;
       };
       connections?: Array<{
         targetNodeId: string;
         relation: string;
         newNodeIsFrom?: boolean;
+        description?: string | null;
       }>;
     };
 
@@ -55,6 +57,7 @@ export async function POST(request: Request) {
               targetNodeId: connectionData.globalNodeId,
               relation: connectionData.relation,
               newNodeIsFrom: connectionData.newNodeIsFrom ?? false,
+              description: connectionData.description ?? null,
             },
           ]
         : [];
@@ -93,6 +96,7 @@ export async function POST(request: Request) {
                 globalNodeId: conn.targetNodeId,
                 relation: conn.relation,
                 newNodeIsFrom: conn.newNodeIsFrom ?? false,
+                description: conn.description?.trim() || null,
               })),
             }
           : undefined,

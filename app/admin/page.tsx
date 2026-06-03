@@ -8,6 +8,7 @@ type RequestConnection = {
   id: string;
   relation: string;
   newNodeIsFrom: boolean;
+  description: string | null;
   globalNode: { name: string };
 };
 
@@ -144,7 +145,7 @@ export default function AdminDashboard() {
                 <div key={req.id} style={{ background: '#111009', border: '1px solid #3a3020', borderRadius: 12, padding: 24 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     
-                    <div>
+                    <div style={{ minWidth: 0 }}>
                       <h2 style={{ color: '#f0e6d3', margin: '0 0 8px 0', fontSize: 22 }}>
                         {req.nodeName}
                       </h2>
@@ -159,7 +160,7 @@ export default function AdminDashboard() {
                       )}
                     </div>
 
-                    <div style={{ textAlign: 'right', fontFamily: 'sans-serif', fontSize: 12 }}>
+                    <div style={{ textAlign: 'right', fontFamily: 'sans-serif', fontSize: 12, minWidth: 0 }}>
                       <span style={{ color: '#5a4e38', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Solicitado por</span>
                       <p style={{ color: '#a89878', margin: '4px 0' }}>{req.requester.name || req.requester.email}</p>
                     </div>
@@ -252,23 +253,27 @@ export default function AdminDashboard() {
                               <div
                                 key={connection.id}
                                 style={{
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                  alignItems: 'center',
                                   background: '#111009',
                                   borderRadius: 6,
                                   border: '1px solid #2a2218',
-                                  padding: '8px 12px',
+                                  padding: '10px 12px',
                                   fontFamily: 'sans-serif',
                                   fontSize: 13,
                                   color: '#c8b898',
                                 }}
                               >
-                                <span>{connection.globalNode.name}</span>
-                                <span style={{ color: '#c49a2a' }}>{connection.relation}</span>
-                                <span style={{ color: '#8a7856', fontSize: 12 }}>
-                                  {connection.newNodeIsFrom ? 'Novo no -> alvo' : 'Alvo -> novo no'}
-                                </span>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{connection.globalNode.name}</span>
+                                  <span style={{ color: '#c49a2a' }}>{connection.relation}</span>
+                                  <span style={{ color: '#8a7856', fontSize: 12 }}>
+                                    {connection.newNodeIsFrom ? 'Novo no -> alvo' : 'Alvo -> novo no'}
+                                  </span>
+                                </div>
+                                {connection.description && (
+                                  <p style={{ color: '#9a8a6a', margin: '8px 0 0', fontSize: 12, lineHeight: 1.5 }}>
+                                    {connection.description}
+                                  </p>
+                                )}
                               </div>
                             ))}
                           </div>
