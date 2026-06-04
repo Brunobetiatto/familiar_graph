@@ -13,6 +13,9 @@ export type PersonNodeData = {
   gender: 'MALE' | 'FEMALE' | 'OTHER' | null;
   bio: string | null;
   photoUrl: string | null;
+  tagSlug: string;
+  tagLabel: string;
+  tagColor: string;
 };
 
 export type PersonNodeType = Node<PersonNodeData, 'personNode'>;
@@ -62,7 +65,13 @@ function PersonNode({ data, selected }: NodeProps<PersonNodeType>) {
 
       <div
         className={`${styles.nodeContainer} ${selected ? styles.nodeContainerSelected : ''}`}
+        style={
+          {
+            '--tag-primary': data.tagColor,
+          } as React.CSSProperties
+        }
       >
+        <div className={styles.tagRail} />
         {/* Avatar */}
         <div
           className={`${styles.avatar} ${selected ? styles.avatarSelected : ''}`}
@@ -84,6 +93,7 @@ function PersonNode({ data, selected }: NodeProps<PersonNodeType>) {
           </div>
 
           <div className={styles.metaContainer}>
+            <span className={styles.tagLabel}>{data.tagLabel}</span>
             {lifespan && (
               <span className={styles.lifespan}>{lifespan}</span>
             )}

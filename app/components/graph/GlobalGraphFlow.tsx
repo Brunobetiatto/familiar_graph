@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 
 import {
   ReactFlow,
@@ -21,8 +21,11 @@ import {
 import PersonNode, { type PersonNodeData } from './nodes/PersonNode';
 import NodeDetailPanel from './NodeDetailPanel';
 import RequestNodeModal from './RequestNodeModal';
+import ConnectionDocumentModal, { type ConnectionDocument } from './ConnectionDocumentModal';
 import ElkEdge from './edges/ElkEdge';
 import { applyElkLayout } from '@/lib/graph-layout'; // ← NOVO IMPORT
+import type { GlobalTag } from '@/lib/global-tags';
+import styles from './GlobalGraphFlow.module.css';
 
 const NODE_TYPES = { personNode: PersonNode };
 const EDGE_TYPES = { elk: ElkEdge };
@@ -50,15 +53,20 @@ type Props = {
   initialEdges: Edge[];
   initialRootNode?: { id: string; name: string } | null;
   graphLimit?: number;
+  initialActiveTag: GlobalTag;
+  officialTags: GlobalTag[];
 };
 
 type EdgeData = {
   relation?: string;
   description?: string | null;
+  documentTitle?: string | null;
+  documentContent?: string | null;
+  documentImageUrl?: string | null;
   elkPoints?: Array<{ x: number; y: number }>;
 };
 
-type NodeConnection = {
+type NodeConnection = ConnectionDocument & {
   edgeId: string;
   otherNodeName: string;
   directionLabel: string;
@@ -77,6 +85,7 @@ type GraphWindowResponse = {
   edges: Edge[];
   rootNode: { id: string; name: string } | null;
   limit: number;
+  activeTag: GlobalTag;
 };
 
 const NODE_WIDTH = 200;
@@ -87,6 +96,8 @@ export default function GlobalGraphFlow({
   initialEdges,
   initialRootNode = null,
   graphLimit = 200,
+  initialActiveTag,
+  officialTags,
 }: Props) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -96,16 +107,43 @@ export default function GlobalGraphFlow({
     (PersonNodeData & { id: string }) | null
   >(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [documentConnection, setDocumentConnection] = useState<ConnectionDocument | null>(null);
 
   const [layoutReady, setLayoutReady] = useState(false);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [requestPreset, setRequestPreset] = useState<{ id: string; name: string } | null>(null);
   const [rootNode, setRootNode] = useState(initialRootNode);
+  const [activeTag, setActiveTag] = useState(initialActiveTag);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isGraphLoading, setIsGraphLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
+  const [themeAnimationKey, setThemeAnimationKey] = useState(0);
+  const tagTheme = activeTag.theme;
+  const searchCloseTimerRef = useRef<number | null>(null);
+
+  const clearSearchCloseTimer = useCallback(() => {
+    if (!searchCloseTimerRef.current) return;
+    window.clearTimeout(searchCloseTimerRef.current);
+    searchCloseTimerRef.current = null;
+  }, []);
+
+  const closeSearchArea = useCallback(() => {
+    clearSearchCloseTimer();
+    setIsFilterOpen(false);
+    setIsSearchOpen(false);
+    setIsSearchExpanded(false);
+  }, [clearSearchCloseTimer]);
+
+  const scheduleSearchClose = useCallback(() => {
+    clearSearchCloseTimer();
+    searchCloseTimerRef.current = window.setTimeout(() => {
+      closeSearchArea();
+    }, 260);
+  }, [clearSearchCloseTimer, closeSearchArea]);
 
   const applyGraphWindow = useCallback(
     async (
@@ -117,6 +155,7 @@ export default function GlobalGraphFlow({
       setLayoutReady(false);
       setSelectedNodeData(null);
       setSelectedEdgeId(null);
+      setDocumentConnection(null);
       setRootNode(nextRootNode);
 
       if (graphNodes.length === 0) {
@@ -192,6 +231,12 @@ export default function GlobalGraphFlow({
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    setThemeAnimationKey((current) => current + 1);
+  }, [activeTag.slug]);
+
+  useEffect(() => () => clearSearchCloseTimer(), [clearSearchCloseTimer]);
+
+  useEffect(() => {
     if (searchQuery.trim().length < 2) {
       setSearchResults([]);
       return;
@@ -199,7 +244,11 @@ export default function GlobalGraphFlow({
 
     const delay = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/nodes/search?q=${encodeURIComponent(searchQuery.trim())}`);
+        const params = new URLSearchParams({
+          q: searchQuery.trim(),
+          tagSlug: activeTag.slug,
+        });
+        const res = await fetch(`/api/nodes/search?${params.toString()}`);
         if (!res.ok) return;
 
         const results = (await res.json()) as SearchResult[];
@@ -211,26 +260,64 @@ export default function GlobalGraphFlow({
     }, 250);
 
     return () => clearTimeout(delay);
-  }, [searchQuery]);
+  }, [activeTag.slug, searchQuery]);
 
   const loadGraphAroundNode = useCallback(
     async (node: { id: string; name: string }) => {
       setIsGraphLoading(true);
       setSearchError('');
       setIsSearchOpen(false);
+      setIsFilterOpen(false);
       setSearchQuery(node.name);
 
       try {
-        const res = await fetch(`/api/global-graph?seedNodeId=${encodeURIComponent(node.id)}`);
+        const params = new URLSearchParams({
+          seedNodeId: node.id,
+          tagSlug: activeTag.slug,
+        });
+        const res = await fetch(`/api/global-graph?${params.toString()}`);
         if (!res.ok) {
           const data = await res.json();
           throw new Error(data.error || 'Erro ao carregar recorte do grafo.');
         }
 
         const graphWindow = (await res.json()) as GraphWindowResponse;
+        setActiveTag(graphWindow.activeTag);
         await applyGraphWindow(graphWindow.nodes, graphWindow.edges, graphWindow.rootNode, node.id);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Erro ao carregar recorte do grafo.';
+        setSearchError(message);
+      } finally {
+        setIsGraphLoading(false);
+      }
+    },
+    [activeTag.slug, applyGraphWindow]
+  );
+
+  const loadGraphForTag = useCallback(
+    async (tag: GlobalTag) => {
+      setIsGraphLoading(true);
+      setSearchError('');
+      setSearchQuery('');
+      setSearchResults([]);
+      setIsSearchOpen(false);
+      setIsFilterOpen(false);
+      setIsSearchExpanded(true);
+      setActiveTag(tag);
+
+      try {
+        const params = new URLSearchParams({ tagSlug: tag.slug });
+        const res = await fetch(`/api/global-graph?${params.toString()}`);
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Erro ao carregar tema do grafo.');
+        }
+
+        const graphWindow = (await res.json()) as GraphWindowResponse;
+        setActiveTag(graphWindow.activeTag);
+        await applyGraphWindow(graphWindow.nodes, graphWindow.edges, graphWindow.rootNode);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Erro ao carregar tema do grafo.';
         setSearchError(message);
       } finally {
         setIsGraphLoading(false);
@@ -255,14 +342,14 @@ export default function GlobalGraphFlow({
             isSelected: selected,
           },
           style: selected
-            ? { ...EDGE_BASE_STYLE, stroke: '#b28a35', strokeWidth: 4 }
-            : EDGE_BASE_STYLE,
+            ? { ...EDGE_BASE_STYLE, stroke: tagTheme.edgeSelected, strokeWidth: 4 }
+            : { ...EDGE_BASE_STYLE, stroke: tagTheme.edge },
 
           markerEnd: {
             type: MarkerType.ArrowClosed,
             width: 20,
             height: 20,
-            color: selected ? '#b28a35' : '#c49a2a',
+            color: selected ? tagTheme.edgeSelected : tagTheme.primary,
           },
 
           labelStyle: EDGE_LABEL_STYLE,
@@ -272,7 +359,7 @@ export default function GlobalGraphFlow({
           labelBgBorderRadius: 4,
         };
       }),
-    [edges, selectedEdgeId]
+    [edges, selectedEdgeId, tagTheme.edge, tagTheme.edgeSelected, tagTheme.primary]
   );
 
   const nodeNameById = useMemo(() => {
@@ -300,9 +387,42 @@ export default function GlobalGraphFlow({
           directionLabel: isOutgoing ? 'Sai deste no' : 'Chega neste no',
           relation: edgeData?.relation ?? String(edge.label ?? 'Conexao'),
           description: edgeData?.description ?? null,
+          documentTitle: edgeData?.documentTitle ?? null,
+          documentContent: edgeData?.documentContent ?? null,
+          documentImageUrl: edgeData?.documentImageUrl ?? null,
         };
       });
   }, [edges, nodeNameById, selectedNodeData]);
+
+  const buildConnectionDocument = useCallback(
+    (edge: Edge, selectedNodeId?: string | null): ConnectionDocument => {
+      const edgeData = edge.data as EdgeData | undefined;
+      const sourceName = nodeNameById.get(edge.source) ?? edge.source;
+      const targetName = nodeNameById.get(edge.target) ?? edge.target;
+      const isOutgoingFromSelected = selectedNodeId ? edge.source === selectedNodeId : true;
+      const otherNodeName = selectedNodeId
+        ? isOutgoingFromSelected
+          ? targetName
+          : sourceName
+        : `${sourceName} -> ${targetName}`;
+
+      return {
+        edgeId: edge.id,
+        otherNodeName,
+        directionLabel: selectedNodeId
+          ? isOutgoingFromSelected
+            ? 'Sai deste no'
+            : 'Chega neste no'
+          : 'Ligacao selecionada',
+        relation: edgeData?.relation ?? String(edge.label ?? 'Conexao'),
+        description: edgeData?.description ?? null,
+        documentTitle: edgeData?.documentTitle ?? null,
+        documentContent: edgeData?.documentContent ?? null,
+        documentImageUrl: edgeData?.documentImageUrl ?? null,
+      };
+    },
+    [nodeNameById]
+  );
 
   const focusEdge = useCallback(
     (edgeId: string) => {
@@ -355,6 +475,22 @@ export default function GlobalGraphFlow({
     [edges, nodes]
   );
 
+  const openConnectionDocument = useCallback(
+    (edgeId: string) => {
+      focusEdge(edgeId);
+
+      const fromPanel = selectedNodeConnections.find((connection) => connection.edgeId === edgeId);
+      if (fromPanel) {
+        setDocumentConnection(fromPanel);
+        return;
+      }
+
+      const edge = edges.find((item) => item.id === edgeId);
+      if (edge) setDocumentConnection(buildConnectionDocument(edge, selectedNodeData?.id));
+    },
+    [buildConnectionDocument, edges, focusEdge, selectedNodeConnections, selectedNodeData]
+  );
+
   const onNodeClick: NodeMouseHandler<Node> = useCallback(
     (_event, node) => {
       setNodes((currentNodes) =>
@@ -382,8 +518,9 @@ export default function GlobalGraphFlow({
         setSelectedNodeData({ id: sourceNode.id, ...(sourceNode.data as PersonNodeData) });
       }
       focusEdge(edge.id);
+      setDocumentConnection(buildConnectionDocument(edge, sourceNode?.id));
     },
-    [focusEdge, nodes, setNodes]
+    [buildConnectionDocument, focusEdge, nodes, setNodes]
   );
 
   const onPaneClick = useCallback(() => {
@@ -395,6 +532,7 @@ export default function GlobalGraphFlow({
     );
     setSelectedNodeData(null);
     setSelectedEdgeId(null);
+    setDocumentConnection(null);
   }, [setNodes]);
 
   const handleRequestConnection = useCallback((node: { id: string; name: string }) => {
@@ -453,13 +591,26 @@ export default function GlobalGraphFlow({
           isOpen={isRequestModalOpen}
           onClose={handleCloseRequestModal}
           initialConnection={requestPreset}
+          initialTagSlug={activeTag.slug}
         />
       </div>
     );
   }
 
   return (
-    <div style={{ height: '100vh', width: '100%', background: '#0f0d0b', position: 'relative' }}>
+    <div
+      className={styles.graphRoot}
+      style={
+        {
+          '--graph-bg': tagTheme.background,
+          '--graph-primary': tagTheme.primary,
+          '--graph-border': tagTheme.border,
+        } as CSSProperties
+      }
+    >
+      {themeAnimationKey > 1 && (
+        <div key={themeAnimationKey} className={styles.themeWash} />
+      )}
 
       {/* Header */}
       <div
@@ -472,13 +623,13 @@ export default function GlobalGraphFlow({
           alignItems: 'flex-end',
           justifyContent: 'space-between',
           pointerEvents: 'none',
-          background: 'linear-gradient(to bottom, rgba(15,13,11,0.9) 0%, transparent 100%)',
+          background: `linear-gradient(to bottom, ${tagTheme.background}e8 0%, transparent 100%)`,
         }}
       >
         <div>
           <h1
             style={{
-              color: '#f0e6d3',
+              color: tagTheme.secondary,
               fontSize: 22,
               fontWeight: 600,
               margin: 0,
@@ -489,76 +640,129 @@ export default function GlobalGraphFlow({
             Grafo Global
           </h1>
           {layoutReady && (
-            <p style={{ color: '#5a4e38', fontSize: 12, margin: '4px 0 0', fontFamily: 'inherit' }}>
+            <p style={{ color: tagTheme.muted, fontSize: 12, margin: '4px 0 0', fontFamily: 'inherit' }}>
               {nodes.length}/{graphLimit} membros · {edges.length} conexões
               {rootNode ? ` · origem: ${rootNode.name}` : ''}
+              {` · tema: ${activeTag.label}`}
             </p>
           )}
         </div>
 
         <div
-          style={{
-            width: 'min(420px, 42vw)',
-            position: 'relative',
-            pointerEvents: 'auto',
-            fontFamily: 'sans-serif',
+          className={`${styles.searchShell} ${isSearchExpanded ? styles.searchShellOpen : ''}`}
+          style={
+            {
+              '--search-bg': tagTheme.surface,
+              '--search-border': tagTheme.border,
+              '--search-primary': tagTheme.primary,
+              '--search-secondary': tagTheme.secondary,
+              '--search-muted': tagTheme.muted,
+              '--search-page-bg': tagTheme.background,
+            } as CSSProperties
+          }
+          onKeyDown={(event) => {
+            if (event.key !== 'Escape') return;
+            closeSearchArea();
           }}
+          onMouseEnter={() => {
+            clearSearchCloseTimer();
+            setIsSearchExpanded(true);
+            if (searchResults.length > 0 && !isFilterOpen) setIsSearchOpen(true);
+          }}
+          onMouseLeave={scheduleSearchClose}
         >
-          <input
-            value={searchQuery}
-            onChange={(event) => {
-              setSearchQuery(event.target.value);
-              setSearchError('');
-            }}
-            onFocus={() => setIsSearchOpen(searchResults.length > 0)}
-            placeholder="Buscar no de partida..."
-            style={{
-              width: '100%',
-              padding: '10px 12px',
-              borderRadius: 8,
-              border: '1px solid #3a3020',
-              background: '#111009',
-              color: '#f0e6d3',
-              fontSize: 13,
-              outline: 'none',
-              boxShadow: '0 6px 16px rgba(0,0,0,0.35)',
-            }}
-          />
+          <div
+            className={`${styles.searchBar} ${isSearchExpanded ? styles.searchBarOpen : ''}`}
+            onClick={() => setIsSearchExpanded(true)}
+          >
+            <span className={styles.searchIcon} aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M10.8 18.1a7.3 7.3 0 1 1 0-14.6 7.3 7.3 0 0 1 0 14.6Z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                />
+                <path d="m16.2 16.2 4.3 4.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </span>
 
-          {isSearchOpen && searchResults.length > 0 && (
-            <div
-              style={{
-                position: 'absolute',
-                top: 'calc(100% + 6px)',
-                left: 0,
-                right: 0,
-                background: '#181410',
-                border: '1px solid #3a3020',
-                borderRadius: 8,
-                overflow: 'hidden',
-                boxShadow: '0 16px 32px rgba(0,0,0,0.5)',
+            <input
+              value={searchQuery}
+              onChange={(event) => {
+                setSearchQuery(event.target.value);
+                setSearchError('');
+                setIsFilterOpen(false);
               }}
-            >
+              onFocus={() => {
+                setIsSearchExpanded(true);
+                setIsSearchOpen(searchResults.length > 0);
+              }}
+              placeholder={isSearchExpanded ? `Buscar em ${activeTag.label}...` : 'Buscar no grafo...'}
+              className={styles.searchInput}
+            />
+
+            <div className={styles.tagTray} aria-hidden={!isSearchExpanded}>
+              <button
+                type="button"
+                className={styles.tagButton}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setIsSearchExpanded(true);
+                  setIsFilterOpen((current) => !current);
+                  setIsSearchOpen(false);
+                }}
+                tabIndex={isSearchExpanded ? 0 : -1}
+              >
+                <span className={styles.tagDot} />
+                <span>{activeTag.label}</span>
+                <svg
+                  className={`${styles.chevron} ${isFilterOpen ? styles.chevronOpen : ''}`}
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {isFilterOpen && isSearchExpanded && (
+            <div className={styles.dropdown}>
+              {officialTags.map((tag) => {
+                const selected = activeTag.slug === tag.slug;
+
+                return (
+                  <button
+                    key={tag.slug}
+                    type="button"
+                    onClick={() => void loadGraphForTag(tag)}
+                    className={`${styles.tagOption} ${selected ? styles.tagOptionSelected : ''}`}
+                  >
+                    <span
+                      className={styles.tagOptionDot}
+                      style={{ background: tag.theme.primary }}
+                    />
+                    <span className={styles.tagOptionText}>
+                      <span className={styles.tagOptionTitle}>{tag.label}</span>
+                      <span className={styles.tagOptionDescription}>{tag.description}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {!isFilterOpen && isSearchOpen && isSearchExpanded && searchResults.length > 0 && (
+            <div className={styles.dropdown}>
               {searchResults.map((result) => (
                 <button
                   key={result.id}
                   type="button"
                   onClick={() => void loadGraphAroundNode(result)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    display: 'block',
-                    background: 'transparent',
-                    border: 'none',
-                    borderBottom: '1px solid #2a2218',
-                    color: '#c8b898',
-                    cursor: 'pointer',
-                    fontSize: 13,
-                    textAlign: 'left',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
+                  className={styles.searchOption}
                 >
                   {result.name}
                 </button>
@@ -566,11 +770,7 @@ export default function GlobalGraphFlow({
             </div>
           )}
 
-          {searchError && (
-            <p style={{ color: '#ff6b6b', fontSize: 11, margin: '6px 0 0' }}>
-              {searchError}
-            </p>
-          )}
+          {searchError && <p className={styles.searchError}>{searchError}</p>}
         </div>
 
         <div style={{ pointerEvents: 'auto' }}>
@@ -578,8 +778,8 @@ export default function GlobalGraphFlow({
             onClick={handleOpenRequestModal}
             style={{
               padding: '8px 14px',
-              background: '#c49a2a',
-              color: '#111009',
+              background: tagTheme.primary,
+              color: tagTheme.background,
               border: 'none',
               borderRadius: 8,
               cursor: 'pointer',
@@ -603,10 +803,10 @@ export default function GlobalGraphFlow({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: '#0f0d0b',
+            background: tagTheme.background,
             zIndex: 20,
             fontFamily: '"DM Serif Display", Georgia, serif',
-            color: '#8a7856',
+            color: tagTheme.muted,
             fontSize: 16,
           }}
         >
@@ -639,7 +839,7 @@ export default function GlobalGraphFlow({
       >
         <Background
           variant={BackgroundVariant.Dots}
-          color="#2a1e10"
+          color={tagTheme.border}
           gap={28}
           size={1.2}
         />
@@ -647,8 +847,8 @@ export default function GlobalGraphFlow({
         <Controls
           showInteractive={false}
           style={{
-            background: '#1a1410',
-            border: '1px solid #3a3020',
+            background: tagTheme.surface,
+            border: `1px solid ${tagTheme.border}`,
             borderRadius: 8,
             overflow: 'hidden',
           }}
@@ -657,12 +857,12 @@ export default function GlobalGraphFlow({
         {nodes.length <= 120 && (
           <MiniMap
             style={{
-              background: '#141210',
-              border: '1px solid #3a3020',
+              background: tagTheme.surface,
+              border: `1px solid ${tagTheme.border}`,
               borderRadius: 8,
             }}
-            nodeColor="#3a3020"
-            nodeStrokeColor="#5a4830"
+            nodeColor={tagTheme.border}
+            nodeStrokeColor={tagTheme.primary}
             maskColor="rgba(10, 9, 7, 0.82)"
           />
         )}
@@ -675,15 +875,22 @@ export default function GlobalGraphFlow({
         onClose={() => {
           setSelectedNodeData(null);
           setSelectedEdgeId(null);
+          setDocumentConnection(null);
         }}
-        onSelectConnection={focusEdge}
+        onSelectConnection={openConnectionDocument}
         onRequestConnection={handleRequestConnection}
+      />
+
+      <ConnectionDocumentModal
+        connection={documentConnection}
+        onClose={() => setDocumentConnection(null)}
       />
 
       <RequestNodeModal
         isOpen={isRequestModalOpen}
         onClose={handleCloseRequestModal}
         initialConnection={requestPreset}
+        initialTagSlug={activeTag.slug}
       />
     </div>
   );

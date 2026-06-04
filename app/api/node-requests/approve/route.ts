@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import type { Prisma, GlobalNode, NodeRequest, NodeRequestConn } from '@prisma/client';
+import { DEFAULT_GLOBAL_TAG_SLUG } from '@/lib/global-tags';
 
 interface ApproveRequestBody {
   requestId: string;
@@ -49,11 +50,21 @@ export async function POST(request: Request): Promise<NextResponse> {
 
       // Passo A: Cria o nó oficial na tabela GLOBAL_NODE (se nao existir)
       const officialNode: GlobalNode = existingNode
-        ? existingNode.photoUrl || !nodeRequest.nodePhotoUrl
+        ? (existingNode.photoUrl || !nodeRequest.nodePhotoUrl) &&
+          (existingNode.tagSlug !== DEFAULT_GLOBAL_TAG_SLUG ||
+            nodeRequest.nodeTagSlug === DEFAULT_GLOBAL_TAG_SLUG)
           ? existingNode
           : await tx.globalNode.update({
               where: { id: existingNode.id },
-              data: { photoUrl: nodeRequest.nodePhotoUrl },
+              data: {
+                photoUrl: existingNode.photoUrl || !nodeRequest.nodePhotoUrl
+                  ? existingNode.photoUrl
+                  : nodeRequest.nodePhotoUrl,
+                tagSlug:
+                  existingNode.tagSlug === DEFAULT_GLOBAL_TAG_SLUG
+                    ? nodeRequest.nodeTagSlug
+                    : existingNode.tagSlug,
+              },
             })
         : await tx.globalNode.create({
             data: {
@@ -63,6 +74,7 @@ export async function POST(request: Request): Promise<NextResponse> {
               deathDate: nodeRequest.nodeDeathDate,
               bio: nodeRequest.nodeBio,
               photoUrl: nodeRequest.nodePhotoUrl,
+              tagSlug: nodeRequest.nodeTagSlug,
               createdById: nodeRequest.userId, // O usuario que solicitou vira o criador oficial
             },
           });
@@ -73,6 +85,9 @@ export async function POST(request: Request): Promise<NextResponse> {
           toId: connection.newNodeIsFrom ? connection.globalNodeId : officialNode.id,
           relation: connection.relation,
           description: connection.description,
+          documentTitle: connection.documentTitle,
+          documentContent: connection.documentContent,
+          documentImageUrl: connection.documentImageUrl,
           createdById: nodeRequest.userId,
         }));
 
@@ -83,6 +98,9 @@ export async function POST(request: Request): Promise<NextResponse> {
               toId: edge.toId,
               relation: edge.relation,
               description: edge.description,
+              documentTitle: edge.documentTitle,
+              documentContent: edge.documentContent,
+              documentImageUrl: edge.documentImageUrl,
             })),
           },
           select: {
@@ -90,18 +108,24 @@ export async function POST(request: Request): Promise<NextResponse> {
             toId: true,
             relation: true,
             description: true,
+            documentTitle: true,
+            documentContent: true,
+            documentImageUrl: true,
           },
         });
 
         const existingKey = new Set(
           existingEdges.map(
-            (edge) => `${edge.fromId}-${edge.toId}-${edge.relation}-${edge.description ?? ''}`
+            (edge) =>
+              `${edge.fromId}-${edge.toId}-${edge.relation}-${edge.description ?? ''}-${edge.documentTitle ?? ''}-${edge.documentContent ?? ''}-${edge.documentImageUrl ?? ''}`
           )
         );
 
         const newEdges = edgesToCreate.filter(
           (edge) =>
-            !existingKey.has(`${edge.fromId}-${edge.toId}-${edge.relation}-${edge.description ?? ''}`)
+            !existingKey.has(
+              `${edge.fromId}-${edge.toId}-${edge.relation}-${edge.description ?? ''}-${edge.documentTitle ?? ''}-${edge.documentContent ?? ''}-${edge.documentImageUrl ?? ''}`
+            )
         );
 
         if (newEdges.length > 0) {

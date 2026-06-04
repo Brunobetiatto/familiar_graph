@@ -1,5 +1,6 @@
 import type { Edge, Node } from '@xyflow/react';
 import { prisma } from '@/lib/prisma';
+import { DEFAULT_GLOBAL_TAG_SLUG, getGlobalTag, normalizeGlobalTagSlug } from '@/lib/global-tags';
 
 export const GLOBAL_GRAPH_NODE_LIMIT = 200;
 const GLOBAL_GRAPH_EDGE_LIMIT = 260;
@@ -8,6 +9,7 @@ const MAX_EDGES_PER_NODE = 5;
 type GlobalGraphWindowOptions = {
   seedNodeId?: string | null;
   limit?: number;
+  tagSlug?: string | null;
 };
 
 type DbNode = Awaited<ReturnType<typeof prisma.globalNode.findMany>>[number];
@@ -21,11 +23,17 @@ type GlobalNodeData = {
   gender: string | null;
   bio: string | null;
   photoUrl: string | null;
+  tagSlug: string;
+  tagLabel: string;
+  tagColor: string;
 };
 
 type GlobalEdgeData = {
   relation: string;
   description: string | null;
+  documentTitle: string | null;
+  documentContent: string | null;
+  documentImageUrl: string | null;
 };
 
 export type GlobalGraphWindow = {
@@ -33,6 +41,7 @@ export type GlobalGraphWindow = {
   edges: Edge<GlobalEdgeData>[];
   rootNode: { id: string; name: string } | null;
   limit: number;
+  activeTag: ReturnType<typeof getGlobalTag>;
 };
 
 function addNeighbor(adjacency: Map<string, string[]>, nodeId: string, neighborId: string) {
@@ -70,6 +79,8 @@ function collectNodeWindow(seedNodeId: string, edges: DbEdge[], limit: number): 
 }
 
 function formatNode(node: DbNode): Node<GlobalNodeData> {
+  const tag = getGlobalTag(node.tagSlug);
+
   return {
     id: node.id,
     type: 'personNode',
@@ -82,6 +93,9 @@ function formatNode(node: DbNode): Node<GlobalNodeData> {
       gender: node.gender,
       bio: node.bio,
       photoUrl: node.photoUrl,
+      tagSlug: tag.slug,
+      tagLabel: tag.label,
+      tagColor: tag.theme.primary,
     },
   };
 }
@@ -96,6 +110,9 @@ function formatEdge(edge: DbEdge): Edge<GlobalEdgeData> {
     data: {
       relation: edge.relation,
       description: edge.description,
+      documentTitle: edge.documentTitle,
+      documentContent: edge.documentContent,
+      documentImageUrl: edge.documentImageUrl,
     },
   };
 }
@@ -136,8 +153,12 @@ function limitEdgesForWindow(edges: DbEdge[], rootNodeId: string): DbEdge[] {
 export async function getGlobalGraphWindow({
   seedNodeId,
   limit = GLOBAL_GRAPH_NODE_LIMIT,
+  tagSlug = DEFAULT_GLOBAL_TAG_SLUG,
 }: GlobalGraphWindowOptions = {}): Promise<GlobalGraphWindow> {
   const safeLimit = Math.max(1, Math.min(limit, GLOBAL_GRAPH_NODE_LIMIT));
+  const activeTag = getGlobalTag(tagSlug);
+  const normalizedTagSlug = normalizeGlobalTagSlug(tagSlug);
+  const tagFilter = { tagSlug: normalizedTagSlug };
 
   const seedNode = seedNodeId
     ? await prisma.globalNode.findUnique({
@@ -145,6 +166,7 @@ export async function getGlobalGraphWindow({
         select: { id: true, name: true },
       })
     : await prisma.globalNode.findFirst({
+        where: tagFilter,
         orderBy: { name: 'asc' },
         select: { id: true, name: true },
       });
@@ -155,15 +177,48 @@ export async function getGlobalGraphWindow({
       edges: [],
       rootNode: null,
       limit: safeLimit,
+      activeTag,
     };
   }
 
-  const allEdges: DbEdge[] = await prisma.globalEdge.findMany();
-  const selectedIds = collectNodeWindow(seedNode.id, allEdges, safeLimit);
+  const seedMatchesTag = await prisma.globalNode.findFirst({
+    where: { id: seedNode.id, ...tagFilter },
+    select: { id: true },
+  });
+
+  const effectiveSeedNode = seedMatchesTag
+    ? seedNode
+    : await prisma.globalNode.findFirst({
+        where: tagFilter,
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true },
+      });
+
+  if (!effectiveSeedNode) {
+    return {
+      nodes: [],
+      edges: [],
+      rootNode: null,
+      limit: safeLimit,
+      activeTag,
+    };
+  }
+
+  const taggedNodeIds: Array<{ id: string }> = await prisma.globalNode.findMany({
+    where: tagFilter,
+    select: { id: true },
+  });
+  const taggedIdSet = new Set(taggedNodeIds.map((node) => node.id));
+  const allEdgesRaw: DbEdge[] = await prisma.globalEdge.findMany();
+  const allEdges: DbEdge[] = allEdgesRaw.filter(
+    (edge) => taggedIdSet.has(edge.fromId) && taggedIdSet.has(edge.toId)
+  );
+  const selectedIds = collectNodeWindow(effectiveSeedNode.id, allEdges, safeLimit);
 
   if (selectedIds.size < safeLimit) {
     const fillerNodes: Array<{ id: string }> = await prisma.globalNode.findMany({
       where: {
+        ...tagFilter,
         id: {
           notIn: [...selectedIds],
         },
@@ -178,6 +233,7 @@ export async function getGlobalGraphWindow({
 
   const dbNodes: DbNode[] = await prisma.globalNode.findMany({
     where: {
+      ...tagFilter,
       id: {
         in: [...selectedIds],
       },
@@ -188,13 +244,14 @@ export async function getGlobalGraphWindow({
   const validIds = new Set(dbNodes.map((node) => node.id));
   const dbEdges = limitEdgesForWindow(
     allEdges.filter((edge) => validIds.has(edge.fromId) && validIds.has(edge.toId)),
-    seedNode.id
+    effectiveSeedNode.id
   );
 
   return {
     nodes: dbNodes.map(formatNode),
     edges: dbEdges.map(formatEdge),
-    rootNode: seedNode,
+    rootNode: effectiveSeedNode,
     limit: safeLimit,
+    activeTag,
   };
 }

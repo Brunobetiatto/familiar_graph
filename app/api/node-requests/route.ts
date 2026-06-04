@@ -2,6 +2,16 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { uploadNodeImage } from '@/lib/azure-blob';
+import { sanitizeRichText } from '@/lib/sanitize-rich-text';
+import { normalizeGlobalTagSlug } from '@/lib/global-tags';
+import { uploadInlineDocumentImages, type DocumentImageMeta } from '@/lib/edge-document-images';
+
+type ConnectionDocumentInput = {
+  documentTitle?: string | null;
+  documentContent?: string | null;
+  documentImageUrl?: string | null;
+  documentImages?: DocumentImageMeta[];
+};
 
 type NodeRequestPayload = {
   nodeData?: {
@@ -10,6 +20,7 @@ type NodeRequestPayload = {
     birthDate?: string | null;
     deathDate?: string | null;
     bio?: string | null;
+    tagSlug?: string | null;
     userNote?: string | null;
   };
   connectionData?: {
@@ -17,14 +28,16 @@ type NodeRequestPayload = {
     relation?: string;
     newNodeIsFrom?: boolean;
     description?: string | null;
-  };
+  } & ConnectionDocumentInput;
   connections?: Array<{
     targetNodeId: string;
     relation: string;
     newNodeIsFrom?: boolean;
     description?: string | null;
-  }>;
+  } & ConnectionDocumentInput>;
   photoFile?: File | null;
+  connectionDocumentFiles?: Array<File | null>;
+  connectionInlineDocumentFiles?: Array<Record<string, File>>;
 };
 
 function parseJsonField<T>(value: FormDataEntryValue | null, fallback: T): T {
@@ -46,12 +59,34 @@ async function readNodeRequestPayload(request: Request): Promise<NodeRequestPayl
 
   const formData = await request.formData();
   const photo = formData.get('photo');
+  const connections = parseJsonField<NodeRequestPayload['connections']>(
+    formData.get('connections'),
+    undefined
+  );
+  const connectionDocumentFiles =
+    connections?.map((_, index) => {
+      const file = formData.get(`connectionDocumentImage-${index}`);
+      return file instanceof File ? file : null;
+    }) ?? [];
+  const connectionInlineDocumentFiles =
+    connections?.map((connection, index) => {
+      const filesByKey: Record<string, File> = {};
+
+      connection.documentImages?.forEach((image) => {
+        const file = formData.get(`connectionDocumentInlineImage-${index}-${image.key}`);
+        if (file instanceof File) filesByKey[image.key] = file;
+      });
+
+      return filesByKey;
+    }) ?? [];
 
   return {
     nodeData: parseJsonField(formData.get('nodeData'), undefined),
     connectionData: parseJsonField(formData.get('connectionData'), undefined),
-    connections: parseJsonField(formData.get('connections'), undefined),
+    connections,
     photoFile: photo instanceof File ? photo : null,
+    connectionDocumentFiles,
+    connectionInlineDocumentFiles,
   };
 }
 
@@ -70,7 +105,14 @@ export async function POST(request: Request) {
     }
 
     // 2. Le o corpo da requisicao uma unica vez
-    const { nodeData, connectionData, connections, photoFile } =
+    const {
+      nodeData,
+      connectionData,
+      connections,
+      photoFile,
+      connectionDocumentFiles,
+      connectionInlineDocumentFiles,
+    } =
       await readNodeRequestPayload(request);
 
     // 3. Validação básica dos dados do formulário
@@ -90,6 +132,10 @@ export async function POST(request: Request) {
               relation: connectionData.relation,
               newNodeIsFrom: connectionData.newNodeIsFrom ?? false,
               description: connectionData.description ?? null,
+              documentTitle: connectionData.documentTitle ?? null,
+              documentContent: connectionData.documentContent ?? null,
+              documentImageUrl: connectionData.documentImageUrl ?? null,
+              documentImages: connectionData.documentImages ?? [],
             },
           ]
         : [];
@@ -117,6 +163,24 @@ export async function POST(request: Request) {
       folder: 'node-requests',
     });
 
+    const connectionDocumentImageUrls = await Promise.all(
+      normalizedConnections.map((conn, index) =>
+        uploadNodeImage({
+          file: connectionDocumentFiles?.[index] ?? null,
+          folder: 'edge-documents',
+        }).then((url) => url ?? conn.documentImageUrl ?? null)
+      )
+    );
+    const connectionDocumentContents = await Promise.all(
+      normalizedConnections.map((conn, index) =>
+        uploadInlineDocumentImages({
+          content: conn.documentContent,
+          images: conn.documentImages,
+          filesByKey: connectionInlineDocumentFiles?.[index] ?? {},
+        })
+      )
+    );
+
     // 4. Transação única com Prisma (Nested Write) usando o userId do Cookie
     const newRequest = await prisma.nodeRequest.create({
       data: {
@@ -127,14 +191,18 @@ export async function POST(request: Request) {
         nodeDeathDate: nodeData.deathDate ? new Date(nodeData.deathDate) : null,
         nodeBio: nodeData.bio || null,
         nodePhotoUrl,
+        nodeTagSlug: normalizeGlobalTagSlug(nodeData.tagSlug),
         userNote: nodeData.userNote || null,
         connections: normalizedConnections.length
           ? {
-              create: normalizedConnections.map((conn) => ({
+              create: normalizedConnections.map((conn, index) => ({
                 globalNodeId: conn.targetNodeId,
                 relation: conn.relation,
                 newNodeIsFrom: conn.newNodeIsFrom ?? false,
                 description: conn.description?.trim() || null,
+                documentTitle: conn.documentTitle?.trim() || null,
+                documentContent: sanitizeRichText(connectionDocumentContents[index]),
+                documentImageUrl: connectionDocumentImageUrls[index],
               })),
             }
           : undefined,

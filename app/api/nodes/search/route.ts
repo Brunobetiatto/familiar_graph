@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
+import { normalizeGlobalTagSlug } from '@/lib/global-tags';
 
 export async function GET(request: Request) {
   try {
@@ -10,6 +11,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
+    const tagSlug = normalizeGlobalTagSlug(searchParams.get('tagSlug'));
 
     if (!query || query.length < 2) {
       return NextResponse.json([], { status: 200 });
@@ -17,6 +19,7 @@ export async function GET(request: Request) {
 
     const nodes = await prisma.globalNode.findMany({
       where: {
+        tagSlug,
         name: {
           contains: query,
           mode: 'insensitive',
@@ -27,6 +30,7 @@ export async function GET(request: Request) {
         id: true,
         name: true,
         gender: true,
+        tagSlug: true,
       },
     });
 

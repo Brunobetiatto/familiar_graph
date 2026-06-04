@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
+import { normalizeGlobalTagSlug } from '@/lib/global-tags';
 
 export async function GET(request: Request) {
   try {
@@ -12,6 +13,7 @@ export async function GET(request: Request) {
     // 2. Captura o termo pesquisado na URL
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
+    const tagSlug = searchParams.get('tagSlug');
 
     // Se a pesquisa for muito curta, retorna vazio para não sobrecarregar o banco
     if (!query || query.length < 2) {
@@ -21,6 +23,7 @@ export async function GET(request: Request) {
     // 3. Busca no banco de dados usando ILIKE (insensitive)
     const nodes = await prisma.globalNode.findMany({
       where: {
+        ...(tagSlug ? { tagSlug: normalizeGlobalTagSlug(tagSlug) } : {}),
         name: {
           contains: query,
           mode: 'insensitive',
@@ -31,6 +34,7 @@ export async function GET(request: Request) {
         id: true,
         name: true,
         gender: true,
+        tagSlug: true,
       },
     });
 

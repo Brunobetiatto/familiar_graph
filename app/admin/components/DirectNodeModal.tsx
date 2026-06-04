@@ -2,6 +2,8 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { handleKeyboardFormNavigation } from '@/lib/keyboard-navigation';
+import RichTextEditor, { type RichTextImageAsset } from '@/app/components/RichTextEditor';
+import { DEFAULT_GLOBAL_TAG_SLUG, OFFICIAL_GLOBAL_TAGS } from '@/lib/global-tags';
 
 type Connection = {
   targetNodeId: string;
@@ -9,6 +11,10 @@ type Connection = {
   relation: string;
   newNodeIsFrom: boolean;
   description: string;
+  documentTitle: string;
+  documentContent: string;
+  documentImage: File | null;
+  documentImages: RichTextImageAsset[];
 };
 
 type Props = {
@@ -20,6 +26,7 @@ type Props = {
 export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
   // Dados do Nó
   const [name, setName] = useState('');
+  const [tagSlug, setTagSlug] = useState(DEFAULT_GLOBAL_TAG_SLUG);
   const [gender, setGender] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [bio, setBio] = useState('');
@@ -46,7 +53,8 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
     }
     const delayDebounceFn = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/admin/nodes/search?q=${encodeURIComponent(searchQuery)}`);
+        const params = new URLSearchParams({ q: searchQuery, tagSlug });
+        const res = await fetch(`/api/admin/nodes/search?${params.toString()}`);
         if (res.ok) {
           const data = await res.json();
           // Filtra para não mostrar nós que já estão na lista de conexões
@@ -59,7 +67,7 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
     }, 400); // Aguarda 400ms após o admin parar de digitar
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery, connections]);
+  }, [searchQuery, connections, tagSlug]);
 
   useEffect(() => {
     return () => {
@@ -83,6 +91,10 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
         relation: 'FRIEND',
         newNodeIsFrom: true,
         description: '',
+        documentTitle: '',
+        documentContent: '',
+        documentImage: null,
+        documentImages: [],
       },
     ]);
     setSearchQuery('');
@@ -110,6 +122,7 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
     const payload = {
       nodeData: {
         name,
+        tagSlug,
         gender: gender || null,
         birthDate: birthDate ? new Date(birthDate).toISOString() : null,
         bio: bio || null,
@@ -117,6 +130,10 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
       connections: connections.map((connection) => ({
         ...connection,
         description: connection.description.trim() || null,
+        documentTitle: connection.documentTitle.trim() || null,
+        documentContent: connection.documentContent.trim() || null,
+        documentImages: connection.documentImages.map((image) => ({ key: image.key })),
+        documentImage: undefined,
       })),
     };
 
@@ -124,6 +141,14 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
     formData.append('nodeData', JSON.stringify(payload.nodeData));
     formData.append('connections', JSON.stringify(payload.connections));
     if (photoFile) formData.append('photo', photoFile);
+    connections.forEach((connection, index) => {
+      if (connection.documentImage) {
+        formData.append(`connectionDocumentImage-${index}`, connection.documentImage);
+      }
+      connection.documentImages.forEach((image) => {
+        formData.append(`connectionDocumentInlineImage-${index}-${image.key}`, image.file);
+      });
+    });
 
     try {
       const res = await fetch('/api/admin/nodes', {
@@ -144,7 +169,7 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
       }
 
       // Sucesso total
-      setName(''); setGender(''); setBirthDate(''); setBio(''); setPhotoFile(null); setConnections([]);
+      setName(''); setTagSlug(DEFAULT_GLOBAL_TAG_SLUG); setGender(''); setBirthDate(''); setBio(''); setPhotoFile(null); setConnections([]);
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -194,6 +219,16 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
               <div style={{ flex: 2 }}>
                 <Label>Nome Completo *</Label>
                 <Input value={name} onChange={(e: any) => setName(e.target.value)} required />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Label>Tema</Label>
+                <Select value={tagSlug} onChange={(e: any) => setTagSlug(e.target.value)}>
+                  {OFFICIAL_GLOBAL_TAGS.map((tag) => (
+                    <option key={tag.slug} value={tag.slug}>
+                      {tag.label}
+                    </option>
+                  ))}
+                </Select>
               </div>
               <div style={{ flex: 1 }}>
                 <Label>Gênero</Label>
@@ -340,12 +375,50 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
                   </div>
 
                   <div>
-                    <Label>Como essa conexão aconteceu</Label>
+                    <Label>Resumo curto da conexão</Label>
                     <textarea
                       value={conn.description}
                       onChange={(e: any) => updateConnection(conn.targetNodeId, 'description', e.target.value)}
                       placeholder="Ex: Trabalharam juntos no mesmo projeto em 2021."
                       style={{ ...inputStyle, minHeight: 54, maxHeight: 120, resize: 'none', overflowY: 'auto' }}
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Título do documento</Label>
+                    <Input
+                      value={conn.documentTitle}
+                      onChange={(e: any) => updateConnection(conn.targetNodeId, 'documentTitle', e.target.value)}
+                      placeholder={`Ligação com ${conn.targetNodeName}`}
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Imagem do documento</Label>
+                    <Input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={(e: any) => updateConnection(conn.targetNodeId, 'documentImage', e.target.files?.[0] ?? null)}
+                    />
+                    {conn.documentImage && (
+                      <button
+                        type="button"
+                        onClick={() => updateConnection(conn.targetNodeId, 'documentImage', null)}
+                        style={{ marginTop: 6, background: 'none', border: 'none', color: '#8a7856', cursor: 'pointer', fontSize: 12 }}
+                      >
+                        Remover {conn.documentImage.name}
+                      </button>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label>Documento da ligação</Label>
+                    <RichTextEditor
+                      value={conn.documentContent}
+                      onChange={(value) => updateConnection(conn.targetNodeId, 'documentContent', value)}
+                      imageAssets={conn.documentImages}
+                      onImageAssetsChange={(images) => updateConnection(conn.targetNodeId, 'documentImages', images)}
+                      placeholder="Escreva a história, fontes e detalhes desta ligação..."
                     />
                   </div>
                 </div>

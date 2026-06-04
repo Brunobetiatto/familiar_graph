@@ -8,7 +8,7 @@ const ALLOWED_IMAGE_TYPES = new Map([
 
 export type UploadImageOptions = {
   file: File | null;
-  folder: 'global-nodes' | 'node-requests' | 'private-nodes';
+  folder: 'global-nodes' | 'node-requests' | 'private-nodes' | 'edge-documents';
 };
 
 function trimTrailingSlash(value: string): string {

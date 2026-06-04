@@ -21,6 +21,9 @@ type NodeConnection = {
   directionLabel: string;
   relation: string;
   description: string | null;
+  documentTitle: string | null;
+  documentContent: string | null;
+  documentImageUrl: string | null;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -70,7 +73,6 @@ export default function NodeDetailPanel({
   }, [node]);
 
   const visible = node !== null;
-  const selectedConnection = connections.find((connection) => connection.edgeId === selectedEdgeId);
 
   return (
     <div
@@ -215,6 +217,19 @@ export default function NodeDetailPanel({
                 {GENDER_LABEL[node.gender]}
               </span>
             )}
+            {node.tagLabel && (
+              <span
+                style={{
+                  color: node.tagColor || '#c49a2a',
+                  fontFamily: 'sans-serif',
+                  fontSize: 10,
+                  marginTop: 8,
+                  textTransform: 'uppercase',
+                }}
+              >
+                {node.tagLabel}
+              </span>
+            )}
           </div>
 
           {/* ── Campos de informação ── */}
@@ -345,6 +360,21 @@ export default function NodeDetailPanel({
                         >
                           {connection.relation} · {connection.directionLabel}
                         </span>
+                        {connection.documentTitle && (
+                          <span
+                            style={{
+                              display: 'block',
+                              color: '#d9caa8',
+                              fontSize: 12,
+                              marginTop: 8,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {connection.documentTitle}
+                          </span>
+                        )}
                         {connection.description && (
                           <span
                             style={{
@@ -367,65 +397,6 @@ export default function NodeDetailPanel({
                 </div>
               )}
             </div>
-
-            {selectedConnection && (
-              <div
-                style={{
-                  background: '#181410',
-                  border: '1px solid #3a3020',
-                  borderRadius: 8,
-                  padding: 12,
-                  fontFamily: 'sans-serif',
-                }}
-              >
-                <p
-                  style={{
-                    color: '#5a4e38',
-                    fontSize: 10,
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.1em',
-                    margin: '0 0 8px',
-                  }}
-                >
-                  Descricao completa
-                </p>
-                <p
-                  style={{
-                    color: '#c49a2a',
-                    fontSize: 12,
-                    margin: '0 0 8px',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {selectedConnection.otherNodeName} · {selectedConnection.relation}
-                </p>
-                <textarea
-                  readOnly
-                  value={selectedConnection.description || 'Sem descricao registrada.'}
-                  style={{
-                    width: '100%',
-                    minHeight: 180,
-                    maxHeight: 280,
-                    padding: '10px 12px',
-                    background: '#0f0d0b',
-                    border: '1px solid #2a2218',
-                    borderRadius: 6,
-                    color: '#c8b898',
-                    fontSize: 13,
-                    lineHeight: 1.6,
-                    fontFamily: 'sans-serif',
-                    resize: 'none',
-                    outline: 'none',
-                    overflowY: 'auto',
-                    overflowX: 'hidden',
-                    whiteSpace: 'pre-wrap',
-                  }}
-                />
-              </div>
-            )}
           </div>
 
           {/* ── Rodapé ── */}

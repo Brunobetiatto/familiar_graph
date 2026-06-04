@@ -142,6 +142,7 @@ model NodeRequest {
   nodeGender    Gender?
   nodeBio       String?       @db.Text
   nodePhotoUrl  String?
+  nodeTagSlug   String        @default("person")
   userNote      String?       @db.Text
   adminNote     String?       @db.Text
   reviewedById  String?
@@ -162,6 +163,9 @@ model NodeRequestConn {
   relation      RelationType
   newNodeIsFrom Boolean
   description   String?      @db.Text
+  documentTitle String?
+  documentContent String?    @db.Text
+  documentImageUrl String?
 
   // Relacionamentos
   request       NodeRequest @relation(fields: [requestId], references: [id])
@@ -178,6 +182,7 @@ model GlobalNode {
   gender      Gender?
   bio         String?   @db.Text
   photoUrl    String?
+  tagSlug     String    @default("person")
   createdById String
 
   // Relacionamentos
@@ -186,6 +191,7 @@ model GlobalNode {
   edgesFrom   GlobalEdge[]      @relation("GlobalEdgeFrom")
   edgesTo     GlobalEdge[]      @relation("GlobalEdgeTo")
 
+  @@index([tagSlug])
   @@map("GLOBAL_NODE")
 }
 
@@ -195,6 +201,9 @@ model GlobalEdge {
   toId        String
   relation    RelationType
   description String?      @db.Text
+  documentTitle String?
+  documentContent String?  @db.Text
+  documentImageUrl String?
   createdById String
 
   // Relacionamentos

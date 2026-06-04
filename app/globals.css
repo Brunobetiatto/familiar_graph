@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @import '@xyflow/react/dist/style.css';
+@import 'quill/dist/quill.snow.css';
 
 :root {
   --background: #ffffff;
@@ -39,6 +40,25 @@ html {
   overflow-wrap: anywhere;
 }
 
+:where(button, a, input, select, textarea) {
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    opacity 0.18s ease,
+    box-shadow 0.22s ease,
+    transform 0.18s ease;
+}
+
+:where(button, a):active {
+  transform: translateY(1px) scale(0.99);
+}
+
+:where(input, select, textarea, [contenteditable="true"]):focus-visible {
+  outline: 1px solid rgba(196, 154, 42, 0.7);
+  outline-offset: 2px;
+}
+
 *::-webkit-scrollbar {
   display: none;
 }
@@ -49,6 +69,7 @@ html {
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   overflow: hidden;
+  animation: softRise 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .react-flow__controls-button {
@@ -66,11 +87,29 @@ html {
 .react-flow__controls-button:hover {
   background: #221b0f;
   color: #c49a2a;
+  transform: translateX(1px);
 }
 
 .react-flow__controls-button svg {
   fill: currentColor;
   stroke: currentColor;
+}
+
+.react-flow__node {
+  animation: graphNodeIn 0.46s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+.react-flow__edge-path {
+  transition:
+    stroke 0.34s ease,
+    stroke-width 0.34s ease,
+    opacity 0.34s ease,
+    filter 0.34s ease;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  filter: drop-shadow(0 0 8px rgba(196, 154, 42, 0.22));
 }
 
 .global-graph-edge-gradient-wave {
@@ -80,4 +119,230 @@ html {
   filter: blur(3px) drop-shadow(0 0 6px rgba(178, 138, 53, 0.24));
   opacity: 0.95;
   pointer-events: none;
+}
+
+.rich-text-editor {
+  background: #0f0d0b;
+  border: 1px solid #3a3020;
+  border-radius: 6px;
+  color: #f0e6d3;
+  font-family: sans-serif;
+  overflow: hidden;
+  transition:
+    border-color 0.24s ease,
+    box-shadow 0.24s ease,
+    transform 0.24s ease;
+}
+
+.rich-text-editor:focus-within {
+  border-color: rgba(196, 154, 42, 0.72);
+  box-shadow: 0 0 0 3px rgba(196, 154, 42, 0.1);
+}
+
+.rich-text-editor .ql-toolbar.ql-snow {
+  background: #181410;
+  border: 0;
+  border-bottom: 1px solid #2a2218;
+  color: #c8b898;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px;
+}
+
+.rich-text-editor .ql-toolbar.ql-snow .ql-formats {
+  align-items: center;
+  display: inline-flex;
+  margin: 0 4px 0 0;
+}
+
+.rich-text-editor .ql-toolbar.ql-snow button {
+  align-items: center;
+  border-radius: 5px;
+  display: inline-flex;
+  height: 28px;
+  justify-content: center;
+  padding: 4px;
+  width: 30px;
+}
+
+.rich-text-editor .ql-toolbar.ql-snow button:hover,
+.rich-text-editor .ql-toolbar.ql-snow .ql-picker-label:hover {
+  background: rgba(196, 154, 42, 0.1);
+  transform: translateY(-1px);
+}
+
+.rich-text-editor .ql-toolbar.ql-snow button svg {
+  height: 18px;
+  width: 18px;
+}
+
+.rich-text-editor .ql-toolbar.ql-snow .ql-picker {
+  color: #c8b898;
+  font-size: 12px;
+  height: 28px;
+}
+
+.rich-text-editor .ql-toolbar.ql-snow .ql-picker-label {
+  align-items: center;
+  border-radius: 5px;
+  display: flex;
+  height: 28px;
+  padding: 0 20px 0 8px;
+}
+
+.rich-text-editor .ql-toolbar.ql-snow .ql-picker-label svg {
+  height: 18px;
+  right: 2px;
+  width: 18px;
+}
+
+.rich-text-editor .ql-container.ql-snow {
+  background: #0f0d0b;
+  border: 0;
+  color: #f0e6d3;
+  font-size: 14px;
+}
+
+.rich-text-editor .ql-editor {
+  min-height: 300px;
+  max-height: 560px;
+  overflow-y: auto;
+  line-height: 1.75;
+}
+
+.rich-text-editor .ql-editor.ql-blank::before {
+  color: #5a4e38;
+  font-style: normal;
+}
+
+.rich-text-editor .ql-picker,
+.rich-text-editor .ql-stroke {
+  color: #c8b898;
+  stroke: #c8b898;
+}
+
+.rich-text-editor .ql-fill {
+  fill: #c8b898;
+}
+
+.rich-text-editor .ql-picker-options {
+  background: #181410;
+  border-color: #3a3020 !important;
+  color: #f0e6d3;
+}
+
+.rich-text-editor .ql-toolbar button:hover .ql-stroke,
+.rich-text-editor .ql-toolbar button.ql-active .ql-stroke,
+.rich-text-editor .ql-toolbar .ql-picker-label:hover .ql-stroke,
+.rich-text-editor .ql-toolbar .ql-picker-label.ql-active .ql-stroke {
+  stroke: #c49a2a;
+}
+
+.rich-text-editor .ql-toolbar button:hover .ql-fill,
+.rich-text-editor .ql-toolbar button.ql-active .ql-fill {
+  fill: #c49a2a;
+}
+
+.rich-text-editor .ql-toolbar button:hover,
+.rich-text-editor .ql-toolbar button.ql-active,
+.rich-text-editor .ql-picker-label:hover,
+.rich-text-editor .ql-picker-label.ql-active {
+  color: #c49a2a;
+}
+
+.rich-text-editor .ql-editor img[data-upload-key] {
+  cursor: pointer;
+  outline: 1px solid rgba(196, 154, 42, 0.25);
+}
+
+.rich-text-image-controls {
+  align-items: center;
+  background: #111009;
+  border-bottom: 1px solid #2a2218;
+  display: flex;
+  flex-wrap: wrap;
+  font-family: sans-serif;
+  gap: 8px;
+  padding: 8px 10px;
+  animation: softDrop 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.rich-text-image-controls span {
+  color: #8a7856;
+  font-size: 11px;
+}
+
+.connection-document-backdrop {
+  animation: backdropIn 0.24s ease both;
+}
+
+.connection-document-surface {
+  animation: modalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes softRise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes softDrop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes graphNodeIn {
+  from {
+    opacity: 0;
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes backdropIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
 }

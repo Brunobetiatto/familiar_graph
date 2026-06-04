@@ -18,6 +18,7 @@
     url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='20' cy='20' r='2' fill='%23c49a2a' fill-opacity='0.15'/%3E%3Ccircle cx='80' cy='50' r='2' fill='%23c49a2a' fill-opacity='0.15'/%3E%3Ccircle cx='40' cy='90' r='2' fill='%23c49a2a' fill-opacity='0.15'/%3E%3Cpath d='M20 20 L80 50 L40 90 Z' stroke='%23c49a2a' stroke-width='0.5' stroke-opacity='0.08' fill='none'/%3E%3C/svg%3E");
   z-index: 1; /* Abaixo do círculo brilhante e do conteúdo */
   pointer-events: none;
+  animation: backgroundDrift 18s ease-in-out infinite alternate;
 }
 
 /* ─── TELA 1: Hero Section (A luz nasce aqui) ─── */
@@ -50,6 +51,7 @@
   justify-content: center;
   z-index: 2;
   pointer-events: none;
+  animation: softGlow 7s ease-in-out infinite alternate;
 }
 .heroContent {
   position: relative;
@@ -57,6 +59,7 @@
   text-align: center;
   max-width: 600px;
   padding: 20px;
+  animation: heroEnter 0.72s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .heroTitle {
@@ -86,13 +89,29 @@
   font-family: sans-serif;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  transition: transform 0.2s, background-color 0.2s, box-shadow 0.2s;
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s, box-shadow 0.24s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.hoverBtn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 0%, rgba(255,255,255,0.24) 45%, transparent 68%);
+  opacity: 0;
+  transform: translateX(-70%);
+  pointer-events: none;
 }
 
 .hoverBtn:hover {
-  transform: scale(1.05);
+  transform: translateY(-2px) scale(1.03);
   background-color: #dcb038;
   box-shadow: 0 0 20px rgba(196, 154, 42, 0.4);
+}
+
+.hoverBtn:hover::after {
+  animation: buttonSweep 0.7s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ─── FIO E PULSAÇÃO DO GRAFO (Começa no final do Hero) ─── */
@@ -168,6 +187,53 @@
   100% {
     background-position: 0 calc(100% + 2500px);
     opacity: 0;
+  }
+}
+
+@keyframes heroEnter {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes softGlow {
+  from {
+    opacity: 0.72;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.015);
+  }
+}
+
+@keyframes backgroundDrift {
+  from {
+    background-position: 0 0, 0 0;
+  }
+  to {
+    background-position: 0 0, 34px 46px;
+  }
+}
+
+@keyframes buttonSweep {
+  0% {
+    opacity: 0;
+    transform: translateX(-70%);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(70%);
   }
 }
 /* ─── TELA 2: Conteúdo Zig-Zag (z-index alto para ficar acima do fio) ─── */

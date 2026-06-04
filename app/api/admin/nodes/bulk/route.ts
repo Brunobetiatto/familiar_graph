@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import type { Prisma } from '@prisma/client';
+import { normalizeGlobalTagSlug } from '@/lib/global-tags';
 
 export async function POST(request: Request) {
   try {
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
             gender: node.gender || null,
             birthDate: node.birthDate ? new Date(node.birthDate) : null,
             bio: node.bio || null,
+            tagSlug: normalizeGlobalTagSlug(node.tagSlug),
             createdById: userId,
           }
         });

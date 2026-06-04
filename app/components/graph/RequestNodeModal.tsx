@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { handleKeyboardFormNavigation } from '@/lib/keyboard-navigation';
+import RichTextEditor, { type RichTextImageAsset } from '@/app/components/RichTextEditor';
+import { DEFAULT_GLOBAL_TAG_SLUG, OFFICIAL_GLOBAL_TAGS } from '@/lib/global-tags';
 
 type Gender = 'MALE' | 'FEMALE' | 'OTHER' | '';
 
@@ -26,12 +28,17 @@ type Connection = {
   relation: RelationType;
   newNodeIsFrom: boolean;
   description: string;
+  documentTitle: string;
+  documentContent: string;
+  documentImage: File | null;
+  documentImages: RichTextImageAsset[];
 };
 
 type Props = {
   isOpen: boolean;
   onClose: () => void;
   initialConnection?: { id: string; name: string } | null;
+  initialTagSlug?: string;
 };
 
 const MAX_CONNECTIONS = 10;
@@ -52,8 +59,14 @@ const RELATION_OPTIONS: Array<{ value: RelationType; label: string }> = [
   { value: 'OTHER', label: 'Outro' },
 ];
 
-export default function RequestNodeModal({ isOpen, onClose, initialConnection }: Props) {
+export default function RequestNodeModal({
+  isOpen,
+  onClose,
+  initialConnection,
+  initialTagSlug = DEFAULT_GLOBAL_TAG_SLUG,
+}: Props) {
   const [name, setName] = useState('');
+  const [tagSlug, setTagSlug] = useState(initialTagSlug);
   const [gender, setGender] = useState<Gender>('');
   const [birthDate, setBirthDate] = useState('');
   const [deathDate, setDeathDate] = useState('');
@@ -75,6 +88,7 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
 
   useEffect(() => {
     if (!isOpen) return;
+    setTagSlug(initialTagSlug);
 
     if (initialConnection && initialConnection.id) {
       setConnections((prev) => {
@@ -89,11 +103,15 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
             relation: 'FRIEND',
             newNodeIsFrom: true,
             description: '',
+            documentTitle: '',
+            documentContent: '',
+            documentImage: null,
+            documentImages: [],
           },
         ];
       });
     }
-  }, [initialConnection, isOpen]);
+  }, [initialConnection, initialTagSlug, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -105,7 +123,8 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
 
     const delay = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/nodes/search?q=${encodeURIComponent(searchQuery)}`);
+        const params = new URLSearchParams({ q: searchQuery, tagSlug });
+        const res = await fetch(`/api/nodes/search?${params.toString()}`);
         if (!res.ok) return;
         const data = await res.json();
         const filtered = data.filter(
@@ -118,7 +137,7 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
     }, 350);
 
     return () => clearTimeout(delay);
-  }, [searchQuery, connections, isOpen]);
+  }, [searchQuery, connections, isOpen, tagSlug]);
 
   useEffect(() => {
     return () => {
@@ -130,6 +149,7 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
     if (isOpen) return;
 
     setName('');
+    setTagSlug(initialTagSlug);
     setGender('');
     setBirthDate('');
     setDeathDate('');
@@ -141,7 +161,7 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
     setConnections([]);
     setError('');
     setSuccess(false);
-  }, [isOpen]);
+  }, [initialTagSlug, isOpen]);
 
   if (!isOpen) return null;
 
@@ -159,6 +179,10 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
         relation: 'FRIEND',
         newNodeIsFrom: true,
         description: '',
+        documentTitle: '',
+        documentContent: '',
+        documentImage: null,
+        documentImages: [],
       },
     ]);
     setSearchQuery('');
@@ -185,6 +209,7 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
     const payload = {
       nodeData: {
         name,
+        tagSlug,
         gender: gender || null,
         birthDate: birthDate ? new Date(birthDate).toISOString() : null,
         deathDate: deathDate ? new Date(deathDate).toISOString() : null,
@@ -196,6 +221,9 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
         relation: conn.relation,
         newNodeIsFrom: conn.newNodeIsFrom,
         description: conn.description.trim() || null,
+        documentTitle: conn.documentTitle.trim() || null,
+        documentContent: conn.documentContent.trim() || null,
+        documentImages: conn.documentImages.map((image) => ({ key: image.key })),
       })),
     };
 
@@ -203,6 +231,14 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
     formData.append('nodeData', JSON.stringify(payload.nodeData));
     formData.append('connections', JSON.stringify(payload.connections));
     if (photoFile) formData.append('photo', photoFile);
+    connections.forEach((conn, index) => {
+      if (conn.documentImage) {
+        formData.append(`connectionDocumentImage-${index}`, conn.documentImage);
+      }
+      conn.documentImages.forEach((image) => {
+        formData.append(`connectionDocumentInlineImage-${index}-${image.key}`, image.file);
+      });
+    });
 
     try {
       const res = await fetch('/api/node-requests', {
@@ -321,6 +357,16 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
                 <div style={{ flex: 2 }}>
                   <Label>Nome completo *</Label>
                   <Input value={name} onChange={(e) => setName(e.target.value)} required />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Label>Tema</Label>
+                  <Select value={tagSlug} onChange={(e) => setTagSlug(e.target.value)}>
+                    {OFFICIAL_GLOBAL_TAGS.map((tag) => (
+                      <option key={tag.slug} value={tag.slug}>
+                        {tag.label}
+                      </option>
+                    ))}
+                  </Select>
                 </div>
                 <div style={{ flex: 1 }}>
                   <Label>Genero</Label>
@@ -558,7 +604,7 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
                     </div>
 
                     <div style={{ width: '100%' }}>
-                      <Label>Como essa conexao aconteceu</Label>
+                      <Label>Resumo curto da conexao</Label>
                       <textarea
                         value={conn.description}
                         onChange={(e) =>
@@ -566,6 +612,56 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
                         }
                         placeholder="Ex: Conheceram-se na escola em 1998 e mantiveram contato pela familia."
                         style={{ ...inputStyle, minHeight: 54, maxHeight: 120, resize: 'none', overflowY: 'auto' }}
+                      />
+                    </div>
+
+                    <div style={{ width: '100%' }}>
+                      <Label>Titulo do documento</Label>
+                      <Input
+                        value={conn.documentTitle}
+                        onChange={(e) =>
+                          updateConnection(conn.targetNodeId, 'documentTitle', e.target.value)
+                        }
+                        placeholder={`Ligacao com ${conn.targetNodeName}`}
+                      />
+                    </div>
+
+                    <div style={{ width: '100%' }}>
+                      <Label>Imagem do documento</Label>
+                      <Input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={(e) =>
+                          updateConnection(
+                            conn.targetNodeId,
+                            'documentImage',
+                            e.target.files?.[0] ?? null
+                          )
+                        }
+                      />
+                      {conn.documentImage && (
+                        <button
+                          type="button"
+                          onClick={() => updateConnection(conn.targetNodeId, 'documentImage', null)}
+                          style={{ marginTop: 6, background: 'none', border: 'none', color: '#8a7856', cursor: 'pointer', fontSize: 12 }}
+                        >
+                          Remover {conn.documentImage.name}
+                        </button>
+                      )}
+                    </div>
+
+                    <div style={{ width: '100%' }}>
+                      <Label>Documento da ligacao</Label>
+                      <RichTextEditor
+                        value={conn.documentContent}
+                        onChange={(value) =>
+                          updateConnection(conn.targetNodeId, 'documentContent', value)
+                        }
+                        imageAssets={conn.documentImages}
+                        onImageAssetsChange={(images) =>
+                          updateConnection(conn.targetNodeId, 'documentImages', images)
+                        }
+                        placeholder="Escreva a historia, fontes e detalhes desta ligacao..."
                       />
                     </div>
                   </div>

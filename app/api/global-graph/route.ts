@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma'; // Ajuste o caminho se necessário
 import { getGlobalGraphWindow } from '@/lib/global-graph-window';
+import { normalizeGlobalTagSlug } from '@/lib/global-tags';
 
 interface PostBody {
   action: 'create_node' | 'create_edge';
@@ -13,6 +14,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const graphWindow = await getGlobalGraphWindow({
       seedNodeId: searchParams.get('seedNodeId'),
+      tagSlug: searchParams.get('tagSlug'),
     });
 
     return NextResponse.json(graphWindow, { status: 200 });
@@ -33,7 +35,14 @@ export async function POST(request: Request) {
     const { action, payload } = body;
 
     if (action === 'create_node') {
-      const newNode = await prisma.globalNode.create({ data: payload });
+      const newNode = await prisma.globalNode.create({
+        data: {
+          ...payload,
+          tagSlug: normalizeGlobalTagSlug(
+            typeof payload.tagSlug === 'string' ? payload.tagSlug : null
+          ),
+        },
+      });
       return NextResponse.json(newNode, { status: 201 });
     }
 

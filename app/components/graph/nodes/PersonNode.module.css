@@ -17,18 +17,69 @@
   align-items: center;
   gap: 12px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
-  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  transition:
+    border-color 0.24s ease,
+    box-shadow 0.24s ease,
+    background 0.24s ease,
+    transform 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.24s ease;
   cursor: pointer;
   font-family: "DM Serif Display", Georgia, serif;
   z-index: 1;
   position: relative;
+  overflow: hidden;
+}
+
+.nodeContainer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 0%,
+    color-mix(in srgb, var(--tag-primary, #c49a2a) 10%, transparent) 48%,
+    transparent 70%
+  );
+  opacity: 0;
+  transform: translateX(-70%);
+  pointer-events: none;
+}
+
+.nodeContainer:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--tag-primary, #c49a2a) 58%, #3a3020);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.42);
+  filter: brightness(1.04);
+}
+
+.nodeContainer:hover::after {
+  animation: nodeSweep 0.72s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .nodeContainerSelected {
   background: #221e15;
-  border-color: #c49a2a;
-  box-shadow: 0 0 0 2px rgba(196, 154, 42, 0.25), 0 6px 24px rgba(0, 0, 0, 0.5);
+  border-color: var(--tag-primary, #c49a2a);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--tag-primary, #c49a2a) 28%, transparent),
+    0 6px 24px rgba(0, 0, 0, 0.5),
+    0 0 24px color-mix(in srgb, var(--tag-primary, #c49a2a) 16%, transparent);
    z-index: 2;
+}
+
+.tagRail {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--tag-primary, #c49a2a);
+  opacity: 0.85;
+  transform-origin: center;
+  transition: width 0.24s ease, opacity 0.24s ease;
+}
+
+.nodeContainer:hover .tagRail,
+.nodeContainerSelected .tagRail {
+  width: 6px;
+  opacity: 1;
 }
 
 .avatar {
@@ -42,16 +93,21 @@
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: #c49a2a;
+  color: var(--tag-primary, #c49a2a);
   background-color: #241e12; /* Cor de fundo caso não tenha foto */
   border: 1.5px solid #4a3c20;
-  transition: border-color 0.2s;
+  transition: border-color 0.24s ease, transform 0.24s ease, box-shadow 0.24s ease;
   overflow: hidden;
   text-align: center;
 }
 
 .avatarSelected {
-  border-color: #c49a2a;
+  border-color: var(--tag-primary, #c49a2a);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--tag-primary, #c49a2a) 28%, transparent);
+}
+
+.nodeContainer:hover .avatar {
+  transform: scale(1.04);
 }
 
 .infoContainer {
@@ -75,9 +131,19 @@
 .metaContainer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 6px;
   margin-top: 3px;
   min-width: 0;
+}
+
+.tagLabel {
+  color: var(--tag-primary, #c49a2a);
+  font-size: 10px;
+  max-width: 62px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .lifespan {
@@ -94,4 +160,18 @@
   font-size: 12px;
   margin-left: auto;
   flex-shrink: 0;
+}
+
+@keyframes nodeSweep {
+  0% {
+    opacity: 0;
+    transform: translateX(-72%);
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(72%);
+  }
 }

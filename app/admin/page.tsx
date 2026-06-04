@@ -3,12 +3,16 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DirectNodeModal from './components/DirectNodeModal'; // 1. IMPORT AQUI NO TOPO
+import { getGlobalTag } from '@/lib/global-tags';
 
 type RequestConnection = {
   id: string;
   relation: string;
   newNodeIsFrom: boolean;
   description: string | null;
+  documentTitle: string | null;
+  documentContent: string | null;
+  documentImageUrl: string | null;
   globalNode: { name: string };
 };
 
@@ -20,6 +24,7 @@ type NodeRequest = {
   nodeGender: string | null;
   nodeBio: string | null;
   nodePhotoUrl: string | null;
+  nodeTagSlug: string;
   userNote: string | null;
   requester: { name: string; email: string };
   connections: RequestConnection[];
@@ -133,6 +138,7 @@ export default function AdminDashboard() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {requests.map((req) => {
+              const tag = getGlobalTag(req.nodeTagSlug);
               const primaryConnection = req.connections[0];
               const hasConnections = req.connections.length > 0;
               const summary = hasConnections
@@ -166,6 +172,18 @@ export default function AdminDashboard() {
                         <p style={{ color: '#c8b898', margin: 0, fontSize: 14, fontFamily: 'sans-serif' }}>
                           {summary}
                         </p>
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            marginTop: 8,
+                            color: tag.theme.primary,
+                            fontFamily: 'sans-serif',
+                            fontSize: 11,
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          {tag.label}
+                        </span>
                         
                         {req.nodeBio && (
                           <p style={{ color: '#8a7856', marginTop: 12, fontSize: 13, fontStyle: 'italic', fontFamily: 'sans-serif' }}>
@@ -308,6 +326,41 @@ export default function AdminDashboard() {
                                   <p style={{ color: '#9a8a6a', margin: '8px 0 0', fontSize: 12, lineHeight: 1.5 }}>
                                     {connection.description}
                                   </p>
+                                )}
+                                {(connection.documentTitle || connection.documentImageUrl || connection.documentContent) && (
+                                  <div style={{ marginTop: 12, borderTop: '1px solid #2a2218', paddingTop: 12 }}>
+                                    {connection.documentTitle && (
+                                      <h4 style={{ color: '#f0e6d3', margin: '0 0 8px', fontSize: 15, fontFamily: '"DM Serif Display", Georgia, serif' }}>
+                                        {connection.documentTitle}
+                                      </h4>
+                                    )}
+                                    {connection.documentImageUrl && (
+                                      <img
+                                        src={connection.documentImageUrl}
+                                        alt=""
+                                        style={{
+                                          width: '100%',
+                                          maxHeight: 220,
+                                          objectFit: 'cover',
+                                          borderRadius: 6,
+                                          border: '1px solid #2a2218',
+                                          marginBottom: 10,
+                                          display: 'block',
+                                        }}
+                                      />
+                                    )}
+                                    {connection.documentContent && (
+                                      <div
+                                        dangerouslySetInnerHTML={{ __html: connection.documentContent }}
+                                        style={{
+                                          color: '#d8ccb4',
+                                          fontSize: 13,
+                                          lineHeight: 1.7,
+                                          overflowWrap: 'anywhere',
+                                        }}
+                                      />
+                                    )}
+                                  </div>
                                 )}
                               </div>
                             ))}

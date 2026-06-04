@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { uploadNodeImage } from '@/lib/azure-blob';
+import { sanitizeRichText } from '@/lib/sanitize-rich-text';
+import { normalizeGlobalTagSlug } from '@/lib/global-tags';
+import { uploadInlineDocumentImages, type DocumentImageMeta } from '@/lib/edge-document-images';
 
 interface NodeData {
   name: string;
@@ -9,6 +12,7 @@ interface NodeData {
   birthDate?: string | null;
   deathDate?: string | null;
   bio?: string | null;
+  tagSlug?: string | null;
 }
 
 interface ConnectionData {
@@ -16,12 +20,18 @@ interface ConnectionData {
   targetNodeId: string;
   relation: string;
   description?: string | null;
+  documentTitle?: string | null;
+  documentContent?: string | null;
+  documentImageUrl?: string | null;
+  documentImages?: DocumentImageMeta[];
 }
 
 interface CreateNodeBody {
   nodeData: NodeData;
   connections?: ConnectionData[];
   photoFile?: File | null;
+  connectionDocumentFiles?: Array<File | null>;
+  connectionInlineDocumentFiles?: Array<Record<string, File>>;
 }
 
 function parseJsonField<T>(value: FormDataEntryValue | null, fallback: T): T {
@@ -43,11 +53,33 @@ async function readCreateNodeBody(request: Request): Promise<CreateNodeBody> {
 
   const formData = await request.formData();
   const photo = formData.get('photo');
+  const connections = parseJsonField<CreateNodeBody['connections']>(
+    formData.get('connections'),
+    undefined
+  );
+  const connectionDocumentFiles =
+    connections?.map((_, index) => {
+      const file = formData.get(`connectionDocumentImage-${index}`);
+      return file instanceof File ? file : null;
+    }) ?? [];
+  const connectionInlineDocumentFiles =
+    connections?.map((connection, index) => {
+      const filesByKey: Record<string, File> = {};
+
+      connection.documentImages?.forEach((image) => {
+        const file = formData.get(`connectionDocumentInlineImage-${index}-${image.key}`);
+        if (file instanceof File) filesByKey[image.key] = file;
+      });
+
+      return filesByKey;
+    }) ?? [];
 
   return {
     nodeData: parseJsonField(formData.get('nodeData'), {} as NodeData),
-    connections: parseJsonField(formData.get('connections'), undefined),
+    connections,
     photoFile: photo instanceof File ? photo : null,
+    connectionDocumentFiles,
+    connectionInlineDocumentFiles,
   };
 }
 
@@ -64,7 +96,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 });
     }
 
-    const { nodeData, connections, photoFile } = await readCreateNodeBody(request);
+    const {
+      nodeData,
+      connections,
+      photoFile,
+      connectionDocumentFiles,
+      connectionInlineDocumentFiles,
+    } = await readCreateNodeBody(request);
 
     if (!nodeData?.name) {
       return NextResponse.json({ error: 'O nome do nó é obrigatório.' }, { status: 400 });
@@ -79,6 +117,24 @@ export async function POST(request: Request) {
       folder: 'global-nodes',
     });
 
+    const connectionDocumentImageUrls = await Promise.all(
+      (connections ?? []).map((conn, index) =>
+        uploadNodeImage({
+          file: connectionDocumentFiles?.[index] ?? null,
+          folder: 'edge-documents',
+        }).then((url) => url ?? conn.documentImageUrl ?? null)
+      )
+    );
+    const connectionDocumentContents = await Promise.all(
+      (connections ?? []).map((conn, index) =>
+        uploadInlineDocumentImages({
+          content: conn.documentContent,
+          images: conn.documentImages,
+          filesByKey: connectionInlineDocumentFiles?.[index] ?? {},
+        })
+      )
+    );
+
     // 2. Transação para criar o Nó e as Arestas de uma só vez
     const result = await prisma.$transaction(async (tx: typeof prisma) => {
       // Cria o nó global
@@ -90,17 +146,21 @@ export async function POST(request: Request) {
           deathDate: nodeData.deathDate ? new Date(nodeData.deathDate) : null,
           bio: nodeData.bio || null,
           photoUrl,
+          tagSlug: normalizeGlobalTagSlug(nodeData.tagSlug),
           createdById: userId,
         },
       });
 
       // Se o admin escolheu conectar a nós existentes, cria as arestas
       if (connections && connections.length > 0) {
-        const edgesToCreate = connections.map((conn: ConnectionData) => ({
+        const edgesToCreate = connections.map((conn: ConnectionData, index) => ({
           fromId: conn.newNodeIsFrom ? newGlobalNode.id : conn.targetNodeId,
           toId: conn.newNodeIsFrom ? conn.targetNodeId : newGlobalNode.id,
           relation: conn.relation,
           description: conn.description?.trim() || null,
+          documentTitle: conn.documentTitle?.trim() || null,
+          documentContent: sanitizeRichText(connectionDocumentContents[index]),
+          documentImageUrl: connectionDocumentImageUrls[index],
           createdById: userId,
         }));
 
