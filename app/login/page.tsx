@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { handleKeyboardFormNavigation } from '@/lib/keyboard-navigation';
+import VantaNetBackground from '@/app/components/VantaNetBackground';
 
 export default function LoginPage() {
   const [isLoginMode, setIsLoginMode] = useState(true); // Alterna entre Login e Registro
@@ -59,13 +61,35 @@ export default function LoginPage() {
         height: '100vh', width: '100vw',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: '#0f0d0b', fontFamily: '"DM Serif Display", Georgia, serif',
+        overflow: 'hidden',
+        position: 'relative',
       }}
     >
+      <VantaNetBackground />
+
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 1,
+          background:
+            'radial-gradient(circle at 50% 42%, rgba(196,154,42,0.12), rgba(15,13,11,0.32) 42%, rgba(15,13,11,0.82) 100%)',
+          pointerEvents: 'none',
+        }}
+      />
+
       <div
         style={{
-          background: '#111009', border: '1px solid #3a3020', borderRadius: 12,
+          position: 'relative',
+          zIndex: 2,
+          background: 'rgba(17, 16, 9, 0.86)',
+          border: '1px solid rgba(196,154,42,0.22)',
+          borderRadius: 12,
           padding: '40px 32px', width: '100%', maxWidth: 400,
-          boxShadow: '0 20px 40px rgba(0,0,0,0.8)', textAlign: 'center',
+          boxShadow: '0 24px 60px rgba(0,0,0,0.82), 0 0 32px rgba(196,154,42,0.08)',
+          textAlign: 'center',
+          backdropFilter: 'blur(10px)',
         }}
       >
         <h1 style={{ color: '#c49a2a', margin: '0 0 6px 0', fontSize: 28 }}>
@@ -78,7 +102,11 @@ export default function LoginPage() {
         {successMsg && <p style={{ color: '#4CAF50', fontSize: 13, marginBottom: 16, fontFamily: 'sans-serif' }}>{successMsg}</p>}
         {error && <p style={{ color: '#ff6b6b', fontSize: 13, marginBottom: 16, fontFamily: 'sans-serif' }}>{error}</p>}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16, textAlign: 'left' }}>
+        <form
+          onSubmit={handleSubmit}
+          onKeyDown={handleKeyboardFormNavigation}
+          style={{ display: 'flex', flexDirection: 'column', gap: 16, textAlign: 'left' }}
+        >
           
           {!isLoginMode && (
             <div>
@@ -121,12 +149,22 @@ export default function LoginPage() {
 
         <p style={{ marginTop: 24, fontSize: 13, color: '#8a7856', fontFamily: 'sans-serif' }}>
           {isLoginMode ? "Ainda não tem conta? " : "Já possui conta? "}
-          <span 
+          <button
+            type="button"
             onClick={() => { setIsLoginMode(!isLoginMode); setError(''); setSuccessMsg(''); }}
-            style={{ color: '#c49a2a', cursor: 'pointer', fontWeight: 'bold' }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#c49a2a',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              fontSize: 13,
+              fontWeight: 'bold',
+              padding: 0,
+            }}
           >
             {isLoginMode ? "Registre-se aqui." : "Faça login."}
-          </span>
+          </button>
         </p>
       </div>
     </div>

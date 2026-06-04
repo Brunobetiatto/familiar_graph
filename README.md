@@ -68,6 +68,20 @@ DATABASE_URL="postgresql://Brunobetiatto:Brunobetiatto1@localhost:5432/graphdb"
 
 Essa URL corresponde ao serviço PostgreSQL definido em `docker-compose.yml`.
 
+Para upload de fotos dos nós, configure também o Azure Blob Storage:
+
+```env
+AZURE_BLOB_CONTAINER_URL="https://sua-conta.blob.core.windows.net/seu-container"
+AZURE_BLOB_SAS_TOKEN="sp=...&sig=..."
+AZURE_BLOB_PUBLIC_BASE_URL="https://sua-conta.blob.core.windows.net/seu-container"
+```
+
+- `AZURE_BLOB_CONTAINER_URL`: URL do container usado para upload.
+- `AZURE_BLOB_SAS_TOKEN`: SAS com permissão de criação/escrita no container.
+- `AZURE_BLOB_PUBLIC_BASE_URL`: base pública ou CDN usada para montar a URL salva no banco. Se o container for público, pode ser igual à URL do container.
+
+O banco salva apenas a referência da imagem (`photoUrl` nos nós globais/privados e `nodePhotoUrl` nas solicitações pendentes). O arquivo em si fica no Azure.
+
 ## Como rodar localmente
 
 Instale as dependências:

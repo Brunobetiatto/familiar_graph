@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { handleKeyboardFormNavigation } from '@/lib/keyboard-navigation';
 
 type Gender = 'MALE' | 'FEMALE' | 'OTHER' | '';
 
@@ -58,6 +59,11 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
   const [deathDate, setDeathDate] = useState('');
   const [bio, setBio] = useState('');
   const [userNote, setUserNote] = useState('');
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const photoPreviewUrl = useMemo(
+    () => (photoFile ? URL.createObjectURL(photoFile) : ''),
+    [photoFile]
+  );
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<{ id: string; name: string }[]>([]);
@@ -115,6 +121,12 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
   }, [searchQuery, connections, isOpen]);
 
   useEffect(() => {
+    return () => {
+      if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    };
+  }, [photoPreviewUrl]);
+
+  useEffect(() => {
     if (isOpen) return;
 
     setName('');
@@ -123,6 +135,7 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
     setDeathDate('');
     setBio('');
     setUserNote('');
+    setPhotoFile(null);
     setSearchQuery('');
     setSearchResults([]);
     setConnections([]);
@@ -186,11 +199,15 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
       })),
     };
 
+    const formData = new FormData();
+    formData.append('nodeData', JSON.stringify(payload.nodeData));
+    formData.append('connections', JSON.stringify(payload.connections));
+    if (photoFile) formData.append('photo', photoFile);
+
     try {
       const res = await fetch('/api/node-requests', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: formData,
       });
 
       if (!res.ok) {
@@ -282,7 +299,11 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
             <p style={{ fontSize: 14 }}>Ela sera analisada por um administrador.</p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}>
+          <form
+            onSubmit={handleSubmit}
+            onKeyDown={handleKeyboardFormNavigation}
+            style={{ display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}
+          >
             <div style={{ background: '#181410', padding: 16, borderRadius: 8, border: '1px solid #2a2218' }}>
               <h3
                 style={{
@@ -330,6 +351,47 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
                   onChange={(e) => setBio(e.target.value)}
                   style={{ ...inputStyle, minHeight: 58, maxHeight: 120, resize: 'none', overflowY: 'auto' }}
                 />
+              </div>
+
+              <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div
+                  style={{
+                    width: 54,
+                    height: 54,
+                    borderRadius: '50%',
+                    border: '1px solid #3a3020',
+                    background: photoPreviewUrl
+                      ? `url(${photoPreviewUrl}) center/cover no-repeat`
+                      : '#0f0d0b',
+                    color: '#5a4e38',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 11,
+                    flexShrink: 0,
+                    overflow: 'hidden',
+                    fontFamily: 'sans-serif',
+                  }}
+                >
+                  {!photoPreviewUrl && 'Foto'}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Label>Foto do no</Label>
+                  <Input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
+                  />
+                </div>
+                {photoFile && (
+                  <button
+                    type="button"
+                    onClick={() => setPhotoFile(null)}
+                    style={{ background: 'none', border: 'none', color: '#8a7856', cursor: 'pointer', fontSize: 12 }}
+                  >
+                    Remover
+                  </button>
+                )}
               </div>
 
               <div style={{ marginTop: 12 }}>
@@ -422,9 +484,53 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
                       border: '1px dashed #3a3020',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
-                      <span style={{ color: '#c49a2a', flex: 1, minWidth: 0, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conn.targetNodeName}</span>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                        width: '100%',
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <span
+                          style={{
+                            color: '#5a4e38',
+                            display: 'block',
+                            fontFamily: 'sans-serif',
+                            fontSize: 10,
+                            letterSpacing: '0.05em',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          Conectando com
+                        </span>
+                        <strong
+                          title={conn.targetNodeName}
+                          style={{
+                            color: '#c49a2a',
+                            display: 'block',
+                            fontSize: 15,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {conn.targetNodeName}
+                        </strong>
+                      </div>
 
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveConnection(conn.targetNodeId)}
+                        style={{ background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer', fontSize: 16 }}
+                      >
+                        🗑️
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
                       <Select
                         style={{ flex: 1 }}
                         value={conn.newNodeIsFrom ? 'FROM' : 'TO'}
@@ -449,14 +555,6 @@ export default function RequestNodeModal({ isOpen, onClose, initialConnection }:
                           </option>
                         ))}
                       </Select>
-
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveConnection(conn.targetNodeId)}
-                        style={{ background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer', fontSize: 16 }}
-                      >
-                        🗑️
-                      </button>
                     </div>
 
                     <div style={{ width: '100%' }}>

@@ -35,6 +35,8 @@ export async function applyElkLayout(
 ): Promise<{ nodes: Node[]; edges: Edge[] }> {
   if (nodes.length === 0) return { nodes, edges };
 
+  const isDenseGraph = nodes.length > 120 || edges.length > 320;
+
   const elkGraph = {
     id: 'root',
     layoutOptions: {
@@ -42,17 +44,17 @@ export async function applyElkLayout(
       'elk.direction': direction === 'TB' ? 'DOWN' : 'RIGHT',
       
       // ─── Roteamento de arestas ORTOGONAL (90°, sem diagonais) ───────────
-      'elk.edgeRouting': 'ORTHOGONAL',
+      'elk.edgeRouting': isDenseGraph ? 'POLYLINE' : 'ORTHOGONAL',
       
       // ─── Evita que arestas passem por cima de nós ────────────────────────
       'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
       'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
       
       // ─── Espaçamentos ────────────────────────────────────────────────────
-      'elk.spacing.nodeNode': '120',
-      'elk.layered.spacing.nodeNodeBetweenLayers': '200',
-      'elk.spacing.edgeNode': '80',
-      'elk.spacing.edgeEdge': '60',
+      'elk.spacing.nodeNode': isDenseGraph ? '58' : '120',
+      'elk.layered.spacing.nodeNodeBetweenLayers': isDenseGraph ? '105' : '200',
+      'elk.spacing.edgeNode': isDenseGraph ? '28' : '80',
+      'elk.spacing.edgeEdge': isDenseGraph ? '16' : '60',
       'elk.padding': '[top=80, left=80, bottom=80, right=80]',
     },
     children: nodes.map((node) => ({

@@ -11,7 +11,7 @@
   position: absolute;
   inset: 0;
   background-image:
-    radial-gradient(circle at 50% 50%, rgba(26, 22, 17, 0.82) 0%, #0f0d0b 78%),
+    radial-gradient(circle at 50% 50%, rgba(26, 22, 17, 0.58) 0%, rgba(15, 13, 11, 0.78) 78%),
     url("data:image/svg+xml,%3Csvg width='120' height='120' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='22' r='2' fill='%23c49a2a' fill-opacity='0.16'/%3E%3Ccircle cx='92' cy='38' r='2' fill='%23c49a2a' fill-opacity='0.12'/%3E%3Ccircle cx='58' cy='96' r='2' fill='%23c49a2a' fill-opacity='0.14'/%3E%3Cpath d='M24 22 L92 38 L58 96 L24 22' stroke='%23c49a2a' stroke-width='0.5' stroke-opacity='0.08' fill='none'/%3E%3C/svg%3E");
   pointer-events: none;
 }
@@ -91,27 +91,27 @@
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 88px;
+  gap: 96px;
   align-items: stretch;
 }
 
 .decisionLine {
   position: absolute;
-  left: 10%;
-  right: 10%;
-  top: 50%;
-  height: 2px;
-  transform: translateY(-50%);
-  background: rgba(196, 154, 42, 0.22);
-  box-shadow: 0 0 24px rgba(196, 154, 42, 0.2);
+  left: 50%;
+  top: -86px;
+  bottom: -86px;
+  width: 2px;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, transparent, rgba(196, 154, 42, 0.42) 18%, rgba(196, 154, 42, 0.42) 82%, transparent);
+  box-shadow: 0 0 24px rgba(196, 154, 42, 0.24);
   overflow: hidden;
 }
 
 .linePulse {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(196, 154, 42, 0.1) 20%, rgba(196, 154, 42, 0.92) 50%, rgba(196, 154, 42, 0.1) 80%, transparent 100%);
-  animation: pulseAcross 4s ease-in-out infinite;
+  background: linear-gradient(180deg, transparent 0%, rgba(196, 154, 42, 0.12) 20%, rgba(196, 154, 42, 0.92) 50%, rgba(196, 154, 42, 0.12) 80%, transparent 100%);
+  animation: pulseDown 4s ease-in-out infinite;
 }
 
 .centerNode {
@@ -137,15 +137,6 @@
   isolation: isolate;
 }
 
-.nodeHalo {
-  position: absolute;
-  inset: -18px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(196, 154, 42, 0.18), rgba(196, 154, 42, 0) 68%);
-  opacity: 0.82;
-  pointer-events: none;
-}
-
 .nodeCore {
   position: relative;
   z-index: 2;
@@ -157,8 +148,8 @@
   border: 1px solid #3a3020;
   border-radius: 8px;
   background:
-    linear-gradient(145deg, rgba(26, 22, 17, 0.9), rgba(15, 13, 11, 0.9)),
-    radial-gradient(circle at 20% 20%, rgba(196, 154, 42, 0.14), transparent 34%);
+    linear-gradient(145deg, rgba(26, 22, 17, 0.92), rgba(15, 13, 11, 0.94)),
+    linear-gradient(90deg, rgba(196, 154, 42, 0.18), transparent 46%);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
   overflow: hidden;
 }
@@ -166,16 +157,12 @@
 .nodeCore::before {
   content: '';
   position: absolute;
-  inset: 22px 22px auto auto;
-  width: 96px;
-  height: 96px;
-  border: 1px solid rgba(196, 154, 42, 0.2);
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at center, rgba(196, 154, 42, 0.2) 0 4px, transparent 5px),
-    linear-gradient(35deg, transparent 48%, rgba(196, 154, 42, 0.18) 49%, rgba(196, 154, 42, 0.18) 51%, transparent 52%),
-    linear-gradient(145deg, transparent 48%, rgba(196, 154, 42, 0.12) 49%, rgba(196, 154, 42, 0.12) 51%, transparent 52%);
-  opacity: 0.9;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, transparent, #c49a2a, transparent);
+  opacity: 0.75;
 }
 
 .statusBadge {
@@ -255,24 +242,13 @@
 .privateNode .nodeCore {
   background:
     linear-gradient(145deg, rgba(20, 18, 15, 0.92), rgba(15, 13, 11, 0.94)),
+    linear-gradient(270deg, rgba(196, 154, 42, 0.22), transparent 48%),
     repeating-linear-gradient(135deg, rgba(196, 154, 42, 0.05) 0 1px, transparent 1px 14px);
 }
 
-@keyframes pulseAcross {
-  0% {
-    transform: translateX(-85%);
-    opacity: 0;
-  }
-
-  18%,
-  82% {
-    opacity: 1;
-  }
-
-  100% {
-    transform: translateX(85%);
-    opacity: 0;
-  }
+.privateNode .nodeCore::before {
+  left: auto;
+  right: 0;
 }
 
 @media (max-width: 820px) {
@@ -295,21 +271,19 @@
 
   .choiceStage {
     grid-template-columns: 1fr;
-    gap: 26px;
+    gap: 34px;
   }
 
   .decisionLine {
     left: 50%;
-    top: 8%;
-    bottom: 8%;
-    right: auto;
+    top: -34px;
+    bottom: -34px;
     width: 2px;
-    height: auto;
     transform: translateX(-50%);
+    opacity: 0.38;
   }
 
   .linePulse {
-    background: linear-gradient(180deg, transparent 0%, rgba(196, 154, 42, 0.12) 20%, rgba(196, 154, 42, 0.88) 50%, rgba(196, 154, 42, 0.12) 80%, transparent 100%);
     animation-name: pulseDown;
   }
 

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { handleKeyboardFormNavigation } from '@/lib/keyboard-navigation';
 
 type Connection = {
   targetNodeId: string;
@@ -22,6 +23,11 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
   const [gender, setGender] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [bio, setBio] = useState('');
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const photoPreviewUrl = useMemo(
+    () => (photoFile ? URL.createObjectURL(photoFile) : ''),
+    [photoFile]
+  );
 
   // Estados de Conexão e Pesquisa
   const [searchQuery, setSearchQuery] = useState('');
@@ -54,6 +60,12 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery, connections]);
+
+  useEffect(() => {
+    return () => {
+      if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    };
+  }, [photoPreviewUrl]);
 
   if (!isOpen) return null;
 
@@ -108,11 +120,15 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
       })),
     };
 
+    const formData = new FormData();
+    formData.append('nodeData', JSON.stringify(payload.nodeData));
+    formData.append('connections', JSON.stringify(payload.connections));
+    if (photoFile) formData.append('photo', photoFile);
+
     try {
       const res = await fetch('/api/admin/nodes', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: formData,
       });
 
       // NOVO TRATAMENTO DE ERRO BLINDADO
@@ -128,7 +144,7 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
       }
 
       // Sucesso total
-      setName(''); setGender(''); setBirthDate(''); setBio(''); setConnections([]);
+      setName(''); setGender(''); setBirthDate(''); setBio(''); setPhotoFile(null); setConnections([]);
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -165,7 +181,11 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
           Crie um nó isolado ou anexe-o a até 5 conexões existentes no Grafo.
         </p>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}>
+        <form
+          onSubmit={handleSubmit}
+          onKeyDown={handleKeyboardFormNavigation}
+          style={{ display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}
+        >
           
           {/* Seção 1: Dados do Nó */}
           <div style={{ background: '#181410', padding: 16, borderRadius: 8, border: '1px solid #2a2218' }}>
@@ -193,6 +213,46 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
                 <Label>Biografia Breve</Label>
                 <Input value={bio} onChange={(e: any) => setBio(e.target.value)} placeholder="Breve resumo..." />
               </div>
+            </div>
+            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div
+                style={{
+                  width: 54,
+                  height: 54,
+                  borderRadius: '50%',
+                  border: '1px solid #3a3020',
+                  background: photoPreviewUrl
+                    ? `url(${photoPreviewUrl}) center/cover no-repeat`
+                    : '#0f0d0b',
+                  color: '#5a4e38',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 11,
+                  flexShrink: 0,
+                  overflow: 'hidden',
+                  fontFamily: 'sans-serif',
+                }}
+              >
+                {!photoPreviewUrl && 'Foto'}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <Label>Foto do no</Label>
+                <Input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e: any) => setPhotoFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+              {photoFile && (
+                <button
+                  type="button"
+                  onClick={() => setPhotoFile(null)}
+                  style={{ background: 'none', border: 'none', color: '#8a7856', cursor: 'pointer', fontSize: 12 }}
+                >
+                  Remover
+                </button>
+              )}
             </div>
           </div>
 
@@ -228,9 +288,41 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {connections.map((conn) => (
                 <div key={conn.targetNodeId} style={{ display: 'flex', flexDirection: 'column', gap: 12, background: '#111009', padding: 12, borderRadius: 6, border: '1px dashed #3a3020' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <span
+                        style={{
+                          color: '#5a4e38',
+                          display: 'block',
+                          fontFamily: 'sans-serif',
+                          fontSize: 10,
+                          letterSpacing: '0.05em',
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        Conectando com
+                      </span>
+                      <strong
+                        title={conn.targetNodeName}
+                        style={{
+                          color: '#c49a2a',
+                          display: 'block',
+                          fontSize: 15,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {conn.targetNodeName}
+                      </strong>
+                    </div>
+
+                    <button type="button" onClick={() => handleRemoveConnection(conn.targetNodeId)} style={{ background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer', fontSize: 16 }}>
+                      🗑️
+                    </button>
+                  </div>
+
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ color: '#c49a2a', flex: 1, minWidth: 0, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conn.targetNodeName}</span>
-                    
                     {/* Direção da Linha */}
                     <Select style={{ flex: 1 }} value={conn.newNodeIsFrom ? 'FROM' : 'TO'} onChange={(e: any) => updateConnection(conn.targetNodeId, 'newNodeIsFrom', e.target.value === 'FROM')}>
                       <option value="FROM">Seta sai do Novo Nó</option>
@@ -245,10 +337,6 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
                       <option value="FRIEND">Amigo(a)</option>
                       <option value="TEAMMATE">Colega de Equipe</option>
                     </Select>
-
-                    <button type="button" onClick={() => handleRemoveConnection(conn.targetNodeId)} style={{ background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer', fontSize: 16 }}>
-                      🗑️
-                    </button>
                   </div>
 
                   <div>

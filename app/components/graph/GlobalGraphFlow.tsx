@@ -48,6 +48,8 @@ const EDGE_LABEL_BG_STYLE = {
 type Props = {
   initialNodes: Node[];
   initialEdges: Edge[];
+  initialRootNode?: { id: string; name: string } | null;
+  graphLimit?: number;
 };
 
 type EdgeData = {
@@ -64,10 +66,28 @@ type NodeConnection = {
   description: string | null;
 };
 
+type SearchResult = {
+  id: string;
+  name: string;
+  gender?: string | null;
+};
+
+type GraphWindowResponse = {
+  nodes: Node[];
+  edges: Edge[];
+  rootNode: { id: string; name: string } | null;
+  limit: number;
+};
+
 const NODE_WIDTH = 200;
 const NODE_HEIGHT = 80;
 
-export default function GlobalGraphFlow({ initialNodes, initialEdges }: Props) {
+export default function GlobalGraphFlow({
+  initialNodes,
+  initialEdges,
+  initialRootNode = null,
+  graphLimit = 200,
+}: Props) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const flowInstanceRef = useRef<ReactFlowInstance<Node, Edge> | null>(null);
@@ -80,53 +100,178 @@ export default function GlobalGraphFlow({ initialNodes, initialEdges }: Props) {
   const [layoutReady, setLayoutReady] = useState(false);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [requestPreset, setRequestPreset] = useState<{ id: string; name: string } | null>(null);
+  const [rootNode, setRootNode] = useState(initialRootNode);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isGraphLoading, setIsGraphLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
 
-  // ← AGORA É ASYNC por causa do ELK
+  const applyGraphWindow = useCallback(
+    async (
+      graphNodes: Node[],
+      graphEdges: Edge[],
+      nextRootNode: { id: string; name: string } | null,
+      selectedNodeId?: string | null
+    ) => {
+      setLayoutReady(false);
+      setSelectedNodeData(null);
+      setSelectedEdgeId(null);
+      setRootNode(nextRootNode);
+
+      if (graphNodes.length === 0) {
+        setNodes([]);
+        setEdges([]);
+        setLayoutReady(true);
+        return;
+      }
+
+      try {
+        const { nodes: laidOutNodes, edges: laidOutEdges } = await applyElkLayout(
+          graphNodes,
+          graphEdges,
+          'TB'
+        );
+        const nextNodes = selectedNodeId
+          ? laidOutNodes.map((node) => ({
+              ...node,
+              selected: node.id === selectedNodeId,
+            }))
+          : laidOutNodes;
+
+        setNodes(nextNodes);
+        setEdges(laidOutEdges);
+
+        if (selectedNodeId) {
+          const selectedNode = nextNodes.find((node) => node.id === selectedNodeId);
+          if (selectedNode) {
+            setSelectedNodeData({
+              id: selectedNode.id,
+              ...(selectedNode.data as PersonNodeData),
+            });
+
+            window.requestAnimationFrame(() => {
+              flowInstanceRef.current?.setCenter(
+                selectedNode.position.x + NODE_WIDTH / 2,
+                selectedNode.position.y + NODE_HEIGHT / 2,
+                { zoom: 1.1, duration: 450 }
+              );
+            });
+          }
+        }
+      } catch (err) {
+        console.error('ELK layout error:', err);
+        const nextNodes = selectedNodeId
+          ? graphNodes.map((node) => ({
+              ...node,
+              selected: node.id === selectedNodeId,
+            }))
+          : graphNodes;
+
+        setNodes(nextNodes);
+        setEdges(graphEdges);
+
+        if (selectedNodeId) {
+          const selectedNode = nextNodes.find((node) => node.id === selectedNodeId);
+          if (selectedNode) {
+            setSelectedNodeData({
+              id: selectedNode.id,
+              ...(selectedNode.data as PersonNodeData),
+            });
+          }
+        }
+      } finally {
+        setLayoutReady(true);
+      }
+    },
+    [setEdges, setNodes]
+  );
+
   useEffect(() => {
-    if (initialNodes.length === 0) {
-      setLayoutReady(true);
+    void applyGraphWindow(initialNodes, initialEdges, initialRootNode);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (searchQuery.trim().length < 2) {
+      setSearchResults([]);
       return;
     }
 
-    applyElkLayout(initialNodes, initialEdges, 'TB')
-      .then(({ nodes: laidOutNodes, edges: laidOutEdges }) => {
-        setNodes(laidOutNodes);
-        setEdges(laidOutEdges);
-        setLayoutReady(true);
-      })
-      .catch((err) => {
-        console.error('ELK layout error:', err);
-        // Fallback: usa os nós sem layout
-        setNodes(initialNodes);
-        setEdges(initialEdges);
-        setLayoutReady(true);
-      });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    const delay = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/nodes/search?q=${encodeURIComponent(searchQuery.trim())}`);
+        if (!res.ok) return;
+
+        const results = (await res.json()) as SearchResult[];
+        setSearchResults(results);
+        setIsSearchOpen(true);
+      } catch (err) {
+        console.error('Erro na busca de nos:', err);
+      }
+    }, 250);
+
+    return () => clearTimeout(delay);
+  }, [searchQuery]);
+
+  const loadGraphAroundNode = useCallback(
+    async (node: { id: string; name: string }) => {
+      setIsGraphLoading(true);
+      setSearchError('');
+      setIsSearchOpen(false);
+      setSearchQuery(node.name);
+
+      try {
+        const res = await fetch(`/api/global-graph?seedNodeId=${encodeURIComponent(node.id)}`);
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Erro ao carregar recorte do grafo.');
+        }
+
+        const graphWindow = (await res.json()) as GraphWindowResponse;
+        await applyGraphWindow(graphWindow.nodes, graphWindow.edges, graphWindow.rootNode, node.id);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Erro ao carregar recorte do grafo.';
+        setSearchError(message);
+      } finally {
+        setIsGraphLoading(false);
+      }
+    },
+    [applyGraphWindow]
+  );
 
   const styledEdges = useMemo<Edge[]>(
     () =>
-      edges.map((e) => ({
-        ...e,
-        selected: e.id === selectedEdgeId,
-        type: 'elk',
-        style:
-          e.id === selectedEdgeId
-            ? { ...EDGE_BASE_STYLE, stroke: '#f2c94c', strokeWidth: 4 }
+      edges.map((e) => {
+        const selected = e.id === selectedEdgeId;
+        const showLabel = edges.length <= 120 || selected;
+
+        return {
+          ...e,
+          label: showLabel ? e.label : undefined,
+          selected,
+          type: 'elk',
+          data: {
+            ...e.data,
+            isSelected: selected,
+          },
+          style: selected
+            ? { ...EDGE_BASE_STYLE, stroke: '#b28a35', strokeWidth: 4 }
             : EDGE_BASE_STYLE,
 
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 20,
-          height: 20,
-          color: e.id === selectedEdgeId ? '#f2c94c' : '#c49a2a',
-        },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            width: 20,
+            height: 20,
+            color: selected ? '#b28a35' : '#c49a2a',
+          },
 
-        labelStyle: EDGE_LABEL_STYLE,
-        labelShowBg: true,
-        labelBgStyle: EDGE_LABEL_BG_STYLE,
-        labelBgPadding: [8, 4] as [number, number],
-        labelBgBorderRadius: 4,
-      })),
+          labelStyle: EDGE_LABEL_STYLE,
+          labelShowBg: showLabel,
+          labelBgStyle: EDGE_LABEL_BG_STYLE,
+          labelBgPadding: [8, 4] as [number, number],
+          labelBgBorderRadius: 4,
+        };
+      }),
     [edges, selectedEdgeId]
   );
 
@@ -212,27 +357,45 @@ export default function GlobalGraphFlow({ initialNodes, initialEdges }: Props) {
 
   const onNodeClick: NodeMouseHandler<Node> = useCallback(
     (_event, node) => {
+      setNodes((currentNodes) =>
+        currentNodes.map((item) => ({
+          ...item,
+          selected: item.id === node.id,
+        }))
+      );
       setSelectedNodeData({ id: node.id, ...(node.data as PersonNodeData) });
       setSelectedEdgeId(null);
     },
-    []
+    [setNodes]
   );
 
   const onEdgeClick: EdgeMouseHandler<Edge> = useCallback(
     (_event, edge) => {
       const sourceNode = nodes.find((node) => node.id === edge.source);
       if (sourceNode) {
+        setNodes((currentNodes) =>
+          currentNodes.map((item) => ({
+            ...item,
+            selected: item.id === sourceNode.id,
+          }))
+        );
         setSelectedNodeData({ id: sourceNode.id, ...(sourceNode.data as PersonNodeData) });
       }
       focusEdge(edge.id);
     },
-    [focusEdge, nodes]
+    [focusEdge, nodes, setNodes]
   );
 
   const onPaneClick = useCallback(() => {
+    setNodes((currentNodes) =>
+      currentNodes.map((node) => ({
+        ...node,
+        selected: false,
+      }))
+    );
     setSelectedNodeData(null);
     setSelectedEdgeId(null);
-  }, []);
+  }, [setNodes]);
 
   const handleRequestConnection = useCallback((node: { id: string; name: string }) => {
     setRequestPreset(node);
@@ -327,10 +490,89 @@ export default function GlobalGraphFlow({ initialNodes, initialEdges }: Props) {
           </h1>
           {layoutReady && (
             <p style={{ color: '#5a4e38', fontSize: 12, margin: '4px 0 0', fontFamily: 'inherit' }}>
-              {nodes.length} membros · {edges.length} conexões
+              {nodes.length}/{graphLimit} membros · {edges.length} conexões
+              {rootNode ? ` · origem: ${rootNode.name}` : ''}
             </p>
           )}
         </div>
+
+        <div
+          style={{
+            width: 'min(420px, 42vw)',
+            position: 'relative',
+            pointerEvents: 'auto',
+            fontFamily: 'sans-serif',
+          }}
+        >
+          <input
+            value={searchQuery}
+            onChange={(event) => {
+              setSearchQuery(event.target.value);
+              setSearchError('');
+            }}
+            onFocus={() => setIsSearchOpen(searchResults.length > 0)}
+            placeholder="Buscar no de partida..."
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              borderRadius: 8,
+              border: '1px solid #3a3020',
+              background: '#111009',
+              color: '#f0e6d3',
+              fontSize: 13,
+              outline: 'none',
+              boxShadow: '0 6px 16px rgba(0,0,0,0.35)',
+            }}
+          />
+
+          {isSearchOpen && searchResults.length > 0 && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                left: 0,
+                right: 0,
+                background: '#181410',
+                border: '1px solid #3a3020',
+                borderRadius: 8,
+                overflow: 'hidden',
+                boxShadow: '0 16px 32px rgba(0,0,0,0.5)',
+              }}
+            >
+              {searchResults.map((result) => (
+                <button
+                  key={result.id}
+                  type="button"
+                  onClick={() => void loadGraphAroundNode(result)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    display: 'block',
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: '1px solid #2a2218',
+                    color: '#c8b898',
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    textAlign: 'left',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {result.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {searchError && (
+            <p style={{ color: '#ff6b6b', fontSize: 11, margin: '6px 0 0' }}>
+              {searchError}
+            </p>
+          )}
+        </div>
+
         <div style={{ pointerEvents: 'auto' }}>
           <button
             onClick={handleOpenRequestModal}
@@ -368,7 +610,7 @@ export default function GlobalGraphFlow({ initialNodes, initialEdges }: Props) {
             fontSize: 16,
           }}
         >
-          Calculando layout...
+          {isGraphLoading ? 'Carregando recorte do grafo...' : 'Calculando layout...'}
         </div>
       )}
 
@@ -392,6 +634,7 @@ export default function GlobalGraphFlow({ initialNodes, initialEdges }: Props) {
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.1}
         maxZoom={2.5}
+        onlyRenderVisibleElements
         proOptions={{ hideAttribution: true }}
       >
         <Background
@@ -411,16 +654,18 @@ export default function GlobalGraphFlow({ initialNodes, initialEdges }: Props) {
           }}
         />
 
-        <MiniMap
-          style={{
-            background: '#141210',
-            border: '1px solid #3a3020',
-            borderRadius: 8,
-          }}
-          nodeColor="#3a3020"
-          nodeStrokeColor="#5a4830"
-          maskColor="rgba(10, 9, 7, 0.82)"
-        />
+        {nodes.length <= 120 && (
+          <MiniMap
+            style={{
+              background: '#141210',
+              border: '1px solid #3a3020',
+              borderRadius: 8,
+            }}
+            nodeColor="#3a3020"
+            nodeStrokeColor="#5a4830"
+            maskColor="rgba(10, 9, 7, 0.82)"
+          />
+        )}
       </ReactFlow>
 
       <NodeDetailPanel

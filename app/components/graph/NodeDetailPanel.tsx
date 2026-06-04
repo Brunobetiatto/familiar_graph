@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import type { PersonNodeData } from './nodes/PersonNode';
+import { moveFocusWithin } from '@/lib/keyboard-navigation';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -60,14 +61,13 @@ export default function NodeDetailPanel({
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Fecha ao pressionar Escape
   useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-    }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+    if (!node) return;
+
+    window.requestAnimationFrame(() => {
+      panelRef.current?.focus();
+    });
+  }, [node]);
 
   const visible = node !== null;
   const selectedConnection = connections.find((connection) => connection.edgeId === selectedEdgeId);
@@ -77,6 +77,26 @@ export default function NodeDetailPanel({
       ref={panelRef}
       role="dialog"
       aria-label="Detalhes do membro"
+      tabIndex={node ? 0 : -1}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          onClose();
+          return;
+        }
+
+        if (!panelRef.current) return;
+
+        if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          moveFocusWithin(panelRef.current, 1);
+          return;
+        }
+
+        if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          moveFocusWithin(panelRef.current, -1);
+        }
+      }}
       style={{
         position: 'absolute',
         top: 0,
@@ -280,7 +300,14 @@ export default function NodeDetailPanel({
                       <button
                         key={connection.edgeId}
                         type="button"
+                        data-connection-button="true"
                         onClick={() => onSelectConnection(connection.edgeId)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            onSelectConnection(connection.edgeId);
+                          }
+                        }}
                         style={{
                           width: '100%',
                           textAlign: 'left',

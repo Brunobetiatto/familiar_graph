@@ -1,6 +1,59 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
+import { uploadNodeImage } from '@/lib/azure-blob';
+
+type NodeRequestPayload = {
+  nodeData?: {
+    name?: string;
+    gender?: string | null;
+    birthDate?: string | null;
+    deathDate?: string | null;
+    bio?: string | null;
+    userNote?: string | null;
+  };
+  connectionData?: {
+    globalNodeId?: string;
+    relation?: string;
+    newNodeIsFrom?: boolean;
+    description?: string | null;
+  };
+  connections?: Array<{
+    targetNodeId: string;
+    relation: string;
+    newNodeIsFrom?: boolean;
+    description?: string | null;
+  }>;
+  photoFile?: File | null;
+};
+
+function parseJsonField<T>(value: FormDataEntryValue | null, fallback: T): T {
+  if (typeof value !== 'string') return fallback;
+
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+async function readNodeRequestPayload(request: Request): Promise<NodeRequestPayload> {
+  const contentType = request.headers.get('content-type') || '';
+
+  if (!contentType.includes('multipart/form-data')) {
+    return (await request.json()) as NodeRequestPayload;
+  }
+
+  const formData = await request.formData();
+  const photo = formData.get('photo');
+
+  return {
+    nodeData: parseJsonField(formData.get('nodeData'), undefined),
+    connectionData: parseJsonField(formData.get('connectionData'), undefined),
+    connections: parseJsonField(formData.get('connections'), undefined),
+    photoFile: photo instanceof File ? photo : null,
+  };
+}
 
 export async function POST(request: Request) {
   try {
@@ -16,30 +69,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Lê o corpo da requisição uma única vez
-    const body = await request.json();
-    const { nodeData, connectionData, connections } = body as {
-      nodeData?: {
-        name?: string;
-        gender?: string | null;
-        birthDate?: string | null;
-        deathDate?: string | null;
-        bio?: string | null;
-        userNote?: string | null;
-      };
-      connectionData?: {
-        globalNodeId?: string;
-        relation?: string;
-        newNodeIsFrom?: boolean;
-        description?: string | null;
-      };
-      connections?: Array<{
-        targetNodeId: string;
-        relation: string;
-        newNodeIsFrom?: boolean;
-        description?: string | null;
-      }>;
-    };
+    // 2. Le o corpo da requisicao uma unica vez
+    const { nodeData, connectionData, connections, photoFile } =
+      await readNodeRequestPayload(request);
 
     // 3. Validação básica dos dados do formulário
     if (!nodeData?.name) {
@@ -80,6 +112,11 @@ export async function POST(request: Request) {
       );
     }
 
+    const nodePhotoUrl = await uploadNodeImage({
+      file: photoFile ?? null,
+      folder: 'node-requests',
+    });
+
     // 4. Transação única com Prisma (Nested Write) usando o userId do Cookie
     const newRequest = await prisma.nodeRequest.create({
       data: {
@@ -89,6 +126,7 @@ export async function POST(request: Request) {
         nodeBirthDate: nodeData.birthDate ? new Date(nodeData.birthDate) : null,
         nodeDeathDate: nodeData.deathDate ? new Date(nodeData.deathDate) : null,
         nodeBio: nodeData.bio || null,
+        nodePhotoUrl,
         userNote: nodeData.userNote || null,
         connections: normalizedConnections.length
           ? {

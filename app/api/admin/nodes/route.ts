@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
+import { uploadNodeImage } from '@/lib/azure-blob';
 
 interface NodeData {
   name: string;
@@ -20,6 +21,34 @@ interface ConnectionData {
 interface CreateNodeBody {
   nodeData: NodeData;
   connections?: ConnectionData[];
+  photoFile?: File | null;
+}
+
+function parseJsonField<T>(value: FormDataEntryValue | null, fallback: T): T {
+  if (typeof value !== 'string') return fallback;
+
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+async function readCreateNodeBody(request: Request): Promise<CreateNodeBody> {
+  const contentType = request.headers.get('content-type') || '';
+
+  if (!contentType.includes('multipart/form-data')) {
+    return (await request.json()) as CreateNodeBody;
+  }
+
+  const formData = await request.formData();
+  const photo = formData.get('photo');
+
+  return {
+    nodeData: parseJsonField(formData.get('nodeData'), {} as NodeData),
+    connections: parseJsonField(formData.get('connections'), undefined),
+    photoFile: photo instanceof File ? photo : null,
+  };
 }
 
 export async function POST(request: Request) {
@@ -35,8 +64,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 });
     }
 
-    const body: CreateNodeBody = await request.json();
-    const { nodeData, connections } = body;
+    const { nodeData, connections, photoFile } = await readCreateNodeBody(request);
 
     if (!nodeData?.name) {
       return NextResponse.json({ error: 'O nome do nó é obrigatório.' }, { status: 400 });
@@ -45,6 +73,11 @@ export async function POST(request: Request) {
     if ((connections?.length ?? 0) > 5) {
       return NextResponse.json({ error: 'Máximo de 5 conexões simultâneas permitido.' }, { status: 400 });
     }
+
+    const photoUrl = await uploadNodeImage({
+      file: photoFile ?? null,
+      folder: 'global-nodes',
+    });
 
     // 2. Transação para criar o Nó e as Arestas de uma só vez
     const result = await prisma.$transaction(async (tx: typeof prisma) => {
@@ -56,6 +89,7 @@ export async function POST(request: Request) {
           birthDate: nodeData.birthDate ? new Date(nodeData.birthDate) : null,
           deathDate: nodeData.deathDate ? new Date(nodeData.deathDate) : null,
           bio: nodeData.bio || null,
+          photoUrl,
           createdById: userId,
         },
       });

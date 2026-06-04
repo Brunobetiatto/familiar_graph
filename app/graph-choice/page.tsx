@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import styles from './graph-choice.module.css';
+import VantaNetBackground from '@/app/components/VantaNetBackground';
 
 export const metadata = {
   title: 'Escolha seu Grafo',
@@ -9,6 +10,7 @@ export const metadata = {
 export default function GraphChoicePage() {
   return (
     <main className={styles.page}>
+      <VantaNetBackground opacity={0.82} />
       <div className={styles.starryBackground} />
       <div className={styles.radialGlow} />
 
@@ -35,7 +37,6 @@ export default function GraphChoicePage() {
           <div className={styles.centerNode} aria-hidden="true" />
 
           <article className={`${styles.choiceNode} ${styles.privateNode}`}>
-            <span className={styles.nodeHalo} aria-hidden="true" />
             <div className={styles.nodeCore}>
               <span className={styles.statusBadge}>Em progresso</span>
               <h2>Grafo privado</h2>
@@ -50,7 +51,6 @@ export default function GraphChoicePage() {
           </article>
 
           <Link href="/global-graph" className={`${styles.choiceNode} ${styles.globalNode}`}>
-            <span className={styles.nodeHalo} aria-hidden="true" />
             <div className={styles.nodeCore}>
               <span className={styles.statusBadge}>Disponível agora</span>
               <h2>Grafo global</h2>

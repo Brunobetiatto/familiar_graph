@@ -72,3 +72,12 @@ html {
   fill: currentColor;
   stroke: currentColor;
 }
+
+.global-graph-edge-gradient-wave {
+  stroke-linecap: round;
+  stroke-width: 10;
+  mix-blend-mode: screen;
+  filter: blur(3px) drop-shadow(0 0 6px rgba(178, 138, 53, 0.24));
+  opacity: 0.95;
+  pointer-events: none;
+}

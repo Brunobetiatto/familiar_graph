@@ -19,6 +19,7 @@ type NodeRequest = {
   nodeDeathDate: string | null;
   nodeGender: string | null;
   nodeBio: string | null;
+  nodePhotoUrl: string | null;
   userNote: string | null;
   requester: { name: string; email: string };
   connections: RequestConnection[];
@@ -145,19 +146,33 @@ export default function AdminDashboard() {
                 <div key={req.id} style={{ background: '#111009', border: '1px solid #3a3020', borderRadius: 12, padding: 24 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     
-                    <div style={{ minWidth: 0 }}>
-                      <h2 style={{ color: '#f0e6d3', margin: '0 0 8px 0', fontSize: 22 }}>
-                        {req.nodeName}
-                      </h2>
-                      <p style={{ color: '#c8b898', margin: 0, fontSize: 14, fontFamily: 'sans-serif' }}>
-                        {summary}
-                      </p>
-                      
-                      {req.nodeBio && (
-                        <p style={{ color: '#8a7856', marginTop: 12, fontSize: 13, fontStyle: 'italic', fontFamily: 'sans-serif' }}>
-                          "{req.nodeBio}"
-                        </p>
+                    <div style={{ minWidth: 0, display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                      {req.nodePhotoUrl && (
+                        <div
+                          style={{
+                            width: 58,
+                            height: 58,
+                            borderRadius: '50%',
+                            background: `url(${req.nodePhotoUrl}) center/cover no-repeat`,
+                            border: '1px solid #3a3020',
+                            flexShrink: 0,
+                          }}
+                        />
                       )}
+                      <div style={{ minWidth: 0 }}>
+                        <h2 style={{ color: '#f0e6d3', margin: '0 0 8px 0', fontSize: 22 }}>
+                          {req.nodeName}
+                        </h2>
+                        <p style={{ color: '#c8b898', margin: 0, fontSize: 14, fontFamily: 'sans-serif' }}>
+                          {summary}
+                        </p>
+                        
+                        {req.nodeBio && (
+                          <p style={{ color: '#8a7856', marginTop: 12, fontSize: 13, fontStyle: 'italic', fontFamily: 'sans-serif' }}>
+                            "{req.nodeBio}"
+                          </p>
+                        )}
+                      </div>
                     </div>
 
                     <div style={{ textAlign: 'right', fontFamily: 'sans-serif', fontSize: 12, minWidth: 0 }}>
@@ -225,6 +240,26 @@ export default function AdminDashboard() {
                             {formatDate(req.nodeDeathDate) || 'Nao informado'}
                           </p>
                         </div>
+                      </div>
+
+                      <div style={{ marginTop: 16 }}>
+                        <span style={{ color: '#5a4e38', fontSize: 10, textTransform: 'uppercase' }}>Foto</span>
+                        {req.nodePhotoUrl ? (
+                          <div
+                            style={{
+                              width: 96,
+                              height: 96,
+                              borderRadius: 10,
+                              border: '1px solid #3a3020',
+                              background: `url(${req.nodePhotoUrl}) center/cover no-repeat`,
+                              marginTop: 8,
+                            }}
+                          />
+                        ) : (
+                          <p style={{ color: '#5a4e38', margin: '6px 0 0', fontFamily: 'sans-serif', fontSize: 13 }}>
+                            Nenhuma foto enviada.
+                          </p>
+                        )}
                       </div>
 
                       <div style={{ marginTop: 16 }}>

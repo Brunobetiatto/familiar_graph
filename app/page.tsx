@@ -3,10 +3,12 @@
 
 import Link from 'next/link';
 import styles from './page.module.css';
+import VantaNetBackground from '@/app/components/VantaNetBackground';
 
 export default function HomePage() {
   return (
     <div className={styles.container}>
+      <VantaNetBackground opacity={0.72} />
       
       {/* ─── A Textura de Fundo do Grafo ─── */}
       <div className={styles.starryBackground} />

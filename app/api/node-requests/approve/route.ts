@@ -49,7 +49,12 @@ export async function POST(request: Request): Promise<NextResponse> {
 
       // Passo A: Cria o nó oficial na tabela GLOBAL_NODE (se nao existir)
       const officialNode: GlobalNode = existingNode
-        ? existingNode
+        ? existingNode.photoUrl || !nodeRequest.nodePhotoUrl
+          ? existingNode
+          : await tx.globalNode.update({
+              where: { id: existingNode.id },
+              data: { photoUrl: nodeRequest.nodePhotoUrl },
+            })
         : await tx.globalNode.create({
             data: {
               name: normalizedName,
@@ -57,7 +62,7 @@ export async function POST(request: Request): Promise<NextResponse> {
               birthDate: nodeRequest.nodeBirthDate,
               deathDate: nodeRequest.nodeDeathDate,
               bio: nodeRequest.nodeBio,
-              photoUrl: null, // Pode ser expandido futuramente
+              photoUrl: nodeRequest.nodePhotoUrl,
               createdById: nodeRequest.userId, // O usuario que solicitou vira o criador oficial
             },
           });

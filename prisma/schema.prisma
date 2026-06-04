@@ -141,6 +141,7 @@ model NodeRequest {
   nodeDeathDate DateTime?     @db.Date
   nodeGender    Gender?
   nodeBio       String?       @db.Text
+  nodePhotoUrl  String?
   userNote      String?       @db.Text
   adminNote     String?       @db.Text
   reviewedById  String?
