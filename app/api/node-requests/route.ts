@@ -3,7 +3,10 @@ import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { uploadNodeImage } from '@/lib/azure-blob';
 import { sanitizeRichText } from '@/lib/sanitize-rich-text';
-import { normalizeGlobalTagSlug } from '@/lib/global-tags';
+import {
+  normalizeAllowedRelationsForTag,
+  resolveGlobalTagSlug,
+} from '@/lib/global-tags-server';
 import { uploadInlineDocumentImages, type DocumentImageMeta } from '@/lib/edge-document-images';
 
 type ConnectionDocumentInput = {
@@ -158,13 +161,31 @@ export async function POST(request: Request) {
       );
     }
 
+    const nodeTagSlug = await resolveGlobalTagSlug(nodeData.tagSlug);
+    let allowedRelationKeys: string[] = [];
+
+    try {
+      allowedRelationKeys = await normalizeAllowedRelationsForTag(
+        nodeTagSlug,
+        normalizedConnections.map((conn) => conn.relation)
+      );
+    } catch (relationError) {
+      const message = relationError instanceof Error ? relationError.message : 'Relacao invalida para esta tag.';
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+
+    const connectionsWithAllowedRelations = normalizedConnections.map((conn, index) => ({
+      ...conn,
+      relation: allowedRelationKeys[index],
+    }));
+
     const nodePhotoUrl = await uploadNodeImage({
       file: photoFile ?? null,
       folder: 'node-requests',
     });
 
     const connectionDocumentImageUrls = await Promise.all(
-      normalizedConnections.map((conn, index) =>
+      connectionsWithAllowedRelations.map((conn, index) =>
         uploadNodeImage({
           file: connectionDocumentFiles?.[index] ?? null,
           folder: 'edge-documents',
@@ -172,7 +193,7 @@ export async function POST(request: Request) {
       )
     );
     const connectionDocumentContents = await Promise.all(
-      normalizedConnections.map((conn, index) =>
+      connectionsWithAllowedRelations.map((conn, index) =>
         uploadInlineDocumentImages({
           content: conn.documentContent,
           images: conn.documentImages,
@@ -191,11 +212,11 @@ export async function POST(request: Request) {
         nodeDeathDate: nodeData.deathDate ? new Date(nodeData.deathDate) : null,
         nodeBio: nodeData.bio || null,
         nodePhotoUrl,
-        nodeTagSlug: normalizeGlobalTagSlug(nodeData.tagSlug),
+        nodeTagSlug,
         userNote: nodeData.userNote || null,
-        connections: normalizedConnections.length
+        connections: connectionsWithAllowedRelations.length
           ? {
-              create: normalizedConnections.map((conn, index) => ({
+              create: connectionsWithAllowedRelations.map((conn, index) => ({
                 globalNodeId: conn.targetNodeId,
                 relation: conn.relation,
                 newNodeIsFrom: conn.newNodeIsFrom ?? false,

@@ -2,7 +2,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma'; // Ajuste o caminho se necessário
 import { getGlobalGraphWindow } from '@/lib/global-graph-window';
-import { normalizeGlobalTagSlug } from '@/lib/global-tags';
+import {
+  normalizeAllowedRelationForTag,
+  resolveGlobalTagSlug,
+} from '@/lib/global-tags-server';
 
 interface PostBody {
   action: 'create_node' | 'create_edge';
@@ -38,7 +41,7 @@ export async function POST(request: Request) {
       const newNode = await prisma.globalNode.create({
         data: {
           ...payload,
-          tagSlug: normalizeGlobalTagSlug(
+          tagSlug: await resolveGlobalTagSlug(
             typeof payload.tagSlug === 'string' ? payload.tagSlug : null
           ),
         },
@@ -47,7 +50,39 @@ export async function POST(request: Request) {
     }
 
     if (action === 'create_edge') {
-      const newEdge = await prisma.globalEdge.create({ data: payload });
+      const fromId = typeof payload.fromId === 'string' ? payload.fromId : '';
+      const toId = typeof payload.toId === 'string' ? payload.toId : '';
+      const relation = typeof payload.relation === 'string' ? payload.relation : '';
+
+      if (!fromId || !toId || !relation) {
+        return NextResponse.json({ error: 'Dados incompletos para criar aresta.' }, { status: 400 });
+      }
+
+      const fromNode = await prisma.globalNode.findUnique({
+        where: { id: fromId },
+        select: { tagSlug: true },
+      });
+
+      if (!fromNode) {
+        return NextResponse.json({ error: 'No de origem nao encontrado.' }, { status: 404 });
+      }
+
+      let allowedRelation: string;
+      try {
+        allowedRelation = await normalizeAllowedRelationForTag(fromNode.tagSlug, relation);
+      } catch (relationError) {
+        const message = relationError instanceof Error ? relationError.message : 'Relacao invalida para esta tag.';
+        return NextResponse.json({ error: message }, { status: 400 });
+      }
+
+      const newEdge = await prisma.globalEdge.create({
+        data: {
+          ...payload,
+          fromId,
+          toId,
+          relation: allowedRelation,
+        },
+      });
       return NextResponse.json(newEdge, { status: 201 });
     }
 

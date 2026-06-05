@@ -1,3 +1,9 @@
+import {
+  DEFAULT_GLOBAL_RELATIONS,
+  getDefaultRelationsForTag,
+  type GlobalTagRelation,
+} from '@/lib/global-relations';
+
 export type GlobalTagTheme = {
   background: string;
   surface: string;
@@ -16,9 +22,11 @@ export type GlobalTag = {
   label: string;
   description: string;
   theme: GlobalTagTheme;
+  relations: GlobalTagRelation[];
 };
 
 export const DEFAULT_GLOBAL_TAG_SLUG = 'person';
+export const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
 export const OFFICIAL_GLOBAL_TAGS: GlobalTag[] = [
   {
@@ -37,6 +45,7 @@ export const OFFICIAL_GLOBAL_TAGS: GlobalTag[] = [
       edge: '#8a7856',
       edgeSelected: '#b28a35',
     },
+    relations: DEFAULT_GLOBAL_RELATIONS,
   },
   {
     slug: 'ww2',
@@ -54,6 +63,7 @@ export const OFFICIAL_GLOBAL_TAGS: GlobalTag[] = [
       edge: '#7d8b62',
       edgeSelected: '#b9c979',
     },
+    relations: getDefaultRelationsForTag('ww2'),
   },
   {
     slug: 'place',
@@ -71,6 +81,7 @@ export const OFFICIAL_GLOBAL_TAGS: GlobalTag[] = [
       edge: '#6d9aa4',
       edgeSelected: '#6bd0e5',
     },
+    relations: getDefaultRelationsForTag('place'),
   },
   {
     slug: 'document',
@@ -88,6 +99,7 @@ export const OFFICIAL_GLOBAL_TAGS: GlobalTag[] = [
       edge: '#9b875a',
       edgeSelected: '#d5b85f',
     },
+    relations: getDefaultRelationsForTag('document'),
   },
 ];
 
@@ -97,10 +109,43 @@ export function getGlobalTag(slug?: string | null): GlobalTag {
   return TAG_BY_SLUG.get(slug ?? '') ?? TAG_BY_SLUG.get(DEFAULT_GLOBAL_TAG_SLUG)!;
 }
 
+export function slugifyGlobalTag(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+}
+
 export function normalizeGlobalTagSlug(slug?: string | null): string {
-  return getGlobalTag(slug).slug;
+  const normalized = slug ? slugifyGlobalTag(slug) : '';
+  return normalized || DEFAULT_GLOBAL_TAG_SLUG;
 }
 
 export function isOfficialGlobalTag(slug?: string | null): boolean {
   return TAG_BY_SLUG.has(slug ?? '');
+}
+
+export function sanitizeGlobalTagTheme(theme: Partial<GlobalTagTheme> = {}): GlobalTagTheme {
+  const fallback = getGlobalTag(DEFAULT_GLOBAL_TAG_SLUG).theme;
+
+  return {
+    background: sanitizeHex(theme.background, fallback.background),
+    surface: sanitizeHex(theme.surface, fallback.surface),
+    border: sanitizeHex(theme.border, fallback.border),
+    primary: sanitizeHex(theme.primary, fallback.primary),
+    secondary: sanitizeHex(theme.secondary, fallback.secondary),
+    muted: sanitizeHex(theme.muted, fallback.muted),
+    node: sanitizeHex(theme.node, theme.surface || fallback.node),
+    nodeSelected: sanitizeHex(theme.nodeSelected, fallback.nodeSelected),
+    edge: sanitizeHex(theme.edge, fallback.edge),
+    edgeSelected: sanitizeHex(theme.edgeSelected, theme.primary || fallback.edgeSelected),
+  };
+}
+
+function sanitizeHex(value: unknown, fallback: string): string {
+  return typeof value === 'string' && HEX_COLOR_PATTERN.test(value) ? value : fallback;
 }

@@ -3,29 +3,22 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { handleKeyboardFormNavigation } from '@/lib/keyboard-navigation';
 import RichTextEditor, { type RichTextImageAsset } from '@/app/components/RichTextEditor';
-import { DEFAULT_GLOBAL_TAG_SLUG, OFFICIAL_GLOBAL_TAGS } from '@/lib/global-tags';
+import {
+  DEFAULT_GLOBAL_TAG_SLUG,
+  OFFICIAL_GLOBAL_TAGS,
+  type GlobalTag,
+} from '@/lib/global-tags';
+import {
+  DEFAULT_GLOBAL_RELATIONS,
+  type GlobalTagRelation,
+} from '@/lib/global-relations';
 
 type Gender = 'MALE' | 'FEMALE' | 'OTHER' | '';
-
-type RelationType =
-  | 'PARENT'
-  | 'CHILD'
-  | 'SPOUSE'
-  | 'SIBLING'
-  | 'FRIEND'
-  | 'ACQUAINTANCE'
-  | 'ROMANTIC'
-  | 'COLLEAGUE'
-  | 'TEAMMATE'
-  | 'MENTOR'
-  | 'STUDENT'
-  | 'PARTNER'
-  | 'OTHER';
 
 type Connection = {
   targetNodeId: string;
   targetNodeName: string;
-  relation: RelationType;
+  relation: string;
   newNodeIsFrom: boolean;
   description: string;
   documentTitle: string;
@@ -43,22 +36,6 @@ type Props = {
 
 const MAX_CONNECTIONS = 10;
 
-const RELATION_OPTIONS: Array<{ value: RelationType; label: string }> = [
-  { value: 'PARENT', label: 'Pai/Mae' },
-  { value: 'CHILD', label: 'Filho(a)' },
-  { value: 'SPOUSE', label: 'Conjuge' },
-  { value: 'SIBLING', label: 'Irmao(a)' },
-  { value: 'FRIEND', label: 'Amigo(a)' },
-  { value: 'ACQUAINTANCE', label: 'Conhecido(a)' },
-  { value: 'ROMANTIC', label: 'Romantico(a)' },
-  { value: 'COLLEAGUE', label: 'Colega' },
-  { value: 'TEAMMATE', label: 'Companheiro(a) de equipe' },
-  { value: 'MENTOR', label: 'Mentor' },
-  { value: 'STUDENT', label: 'Estudante' },
-  { value: 'PARTNER', label: 'Parceiro(a)' },
-  { value: 'OTHER', label: 'Outro' },
-];
-
 export default function RequestNodeModal({
   isOpen,
   onClose,
@@ -73,6 +50,7 @@ export default function RequestNodeModal({
   const [bio, setBio] = useState('');
   const [userNote, setUserNote] = useState('');
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [availableTags, setAvailableTags] = useState<GlobalTag[]>(OFFICIAL_GLOBAL_TAGS);
   const photoPreviewUrl = useMemo(
     () => (photoFile ? URL.createObjectURL(photoFile) : ''),
     [photoFile]
@@ -85,6 +63,15 @@ export default function RequestNodeModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const relationOptions = useMemo<GlobalTagRelation[]>(() => {
+    const selectedTag = availableTags.find((tag) => tag.slug === tagSlug);
+    return selectedTag?.relations?.length ? selectedTag.relations : DEFAULT_GLOBAL_RELATIONS;
+  }, [availableTags, tagSlug]);
+  const defaultRelationKey = relationOptions[0]?.key ?? 'OTHER';
+  const allowedRelationKeys = useMemo(
+    () => new Set(relationOptions.map((relation) => relation.key)),
+    [relationOptions]
+  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -100,7 +87,7 @@ export default function RequestNodeModal({
           {
             targetNodeId: initialConnection.id,
             targetNodeName: initialConnection.name,
-            relation: 'FRIEND',
+            relation: defaultRelationKey,
             newNodeIsFrom: true,
             description: '',
             documentTitle: '',
@@ -111,7 +98,24 @@ export default function RequestNodeModal({
         ];
       });
     }
-  }, [initialConnection, initialTagSlug, isOpen]);
+  }, [defaultRelationKey, initialConnection, initialTagSlug, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    async function fetchTags() {
+      try {
+        const res = await fetch('/api/global-tags');
+        if (!res.ok) return;
+        const tags = (await res.json()) as GlobalTag[];
+        if (tags.length > 0) setAvailableTags(tags);
+      } catch (err) {
+        console.error('Erro ao buscar tags globais:', err);
+      }
+    }
+
+    void fetchTags();
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -146,6 +150,16 @@ export default function RequestNodeModal({
   }, [photoPreviewUrl]);
 
   useEffect(() => {
+    setConnections((prev) =>
+      prev.map((conn) =>
+        allowedRelationKeys.has(conn.relation)
+          ? conn
+          : { ...conn, relation: defaultRelationKey }
+      )
+    );
+  }, [allowedRelationKeys, defaultRelationKey]);
+
+  useEffect(() => {
     if (isOpen) return;
 
     setName('');
@@ -176,7 +190,7 @@ export default function RequestNodeModal({
       {
         targetNodeId: id,
         targetNodeName: nameValue,
-        relation: 'FRIEND',
+        relation: defaultRelationKey,
         newNodeIsFrom: true,
         description: '',
         documentTitle: '',
@@ -361,7 +375,7 @@ export default function RequestNodeModal({
                 <div style={{ flex: 1 }}>
                   <Label>Tema</Label>
                   <Select value={tagSlug} onChange={(e) => setTagSlug(e.target.value)}>
-                    {OFFICIAL_GLOBAL_TAGS.map((tag) => (
+                    {availableTags.map((tag) => (
                       <option key={tag.slug} value={tag.slug}>
                         {tag.label}
                       </option>
@@ -592,11 +606,11 @@ export default function RequestNodeModal({
                         style={{ flex: 1 }}
                         value={conn.relation}
                         onChange={(e) =>
-                          updateConnection(conn.targetNodeId, 'relation', e.target.value as RelationType)
+                          updateConnection(conn.targetNodeId, 'relation', e.target.value)
                         }
                       >
-                        {RELATION_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
+                        {relationOptions.map((option) => (
+                          <option key={option.key} value={option.key}>
                             {option.label}
                           </option>
                         ))}

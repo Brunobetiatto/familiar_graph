@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import type { Prisma, GlobalNode, NodeRequest, NodeRequestConn } from '@prisma/client';
 import { DEFAULT_GLOBAL_TAG_SLUG } from '@/lib/global-tags';
+import { normalizeAllowedRelationsForTag } from '@/lib/global-tags-server';
 
 interface ApproveRequestBody {
   requestId: string;
@@ -34,6 +35,22 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     const connections = nodeRequest.connections;
+    let allowedRelationKeys: string[] = [];
+
+    try {
+      allowedRelationKeys = await normalizeAllowedRelationsForTag(
+        nodeRequest.nodeTagSlug,
+        connections.map((connection) => connection.relation)
+      );
+    } catch (relationError) {
+      const message = relationError instanceof Error ? relationError.message : 'Relação inválida para esta tag.';
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+
+    const connectionsWithAllowedRelations = connections.map((connection, index) => ({
+      ...connection,
+      relation: allowedRelationKeys[index],
+    }));
 
     // 3. Executa a transferência de tabelas dentro de uma Transação Segura
     const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -79,8 +96,8 @@ export async function POST(request: Request): Promise<NextResponse> {
             },
           });
 
-      if (connections.length > 0) {
-        const edgesToCreate = connections.map((connection) => ({
+      if (connectionsWithAllowedRelations.length > 0) {
+        const edgesToCreate = connectionsWithAllowedRelations.map((connection) => ({
           fromId: connection.newNodeIsFrom ? officialNode.id : connection.globalNodeId,
           toId: connection.newNodeIsFrom ? connection.globalNodeId : officialNode.id,
           relation: connection.relation,

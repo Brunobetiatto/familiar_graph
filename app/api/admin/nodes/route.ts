@@ -3,7 +3,10 @@ import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { uploadNodeImage } from '@/lib/azure-blob';
 import { sanitizeRichText } from '@/lib/sanitize-rich-text';
-import { normalizeGlobalTagSlug } from '@/lib/global-tags';
+import {
+  normalizeAllowedRelationsForTag,
+  resolveGlobalTagSlug,
+} from '@/lib/global-tags-server';
 import { uploadInlineDocumentImages, type DocumentImageMeta } from '@/lib/edge-document-images';
 
 interface NodeData {
@@ -112,13 +115,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Máximo de 5 conexões simultâneas permitido.' }, { status: 400 });
     }
 
+    const tagSlug = await resolveGlobalTagSlug(nodeData.tagSlug);
+    let allowedRelationKeys: string[] = [];
+
+    try {
+      allowedRelationKeys = await normalizeAllowedRelationsForTag(
+        tagSlug,
+        (connections ?? []).map((conn) => conn.relation)
+      );
+    } catch (relationError) {
+      const message = relationError instanceof Error ? relationError.message : 'Relação inválida para esta tag.';
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+
+    const connectionsWithAllowedRelations =
+      connections?.map((conn, index) => ({ ...conn, relation: allowedRelationKeys[index] })) ?? [];
+
     const photoUrl = await uploadNodeImage({
       file: photoFile ?? null,
       folder: 'global-nodes',
     });
 
     const connectionDocumentImageUrls = await Promise.all(
-      (connections ?? []).map((conn, index) =>
+      connectionsWithAllowedRelations.map((conn, index) =>
         uploadNodeImage({
           file: connectionDocumentFiles?.[index] ?? null,
           folder: 'edge-documents',
@@ -126,7 +145,7 @@ export async function POST(request: Request) {
       )
     );
     const connectionDocumentContents = await Promise.all(
-      (connections ?? []).map((conn, index) =>
+      connectionsWithAllowedRelations.map((conn, index) =>
         uploadInlineDocumentImages({
           content: conn.documentContent,
           images: conn.documentImages,
@@ -146,14 +165,14 @@ export async function POST(request: Request) {
           deathDate: nodeData.deathDate ? new Date(nodeData.deathDate) : null,
           bio: nodeData.bio || null,
           photoUrl,
-          tagSlug: normalizeGlobalTagSlug(nodeData.tagSlug),
+          tagSlug,
           createdById: userId,
         },
       });
 
       // Se o admin escolheu conectar a nós existentes, cria as arestas
-      if (connections && connections.length > 0) {
-        const edgesToCreate = connections.map((conn: ConnectionData, index) => ({
+      if (connectionsWithAllowedRelations.length > 0) {
+        const edgesToCreate = connectionsWithAllowedRelations.map((conn: ConnectionData, index) => ({
           fromId: conn.newNodeIsFrom ? newGlobalNode.id : conn.targetNodeId,
           toId: conn.newNodeIsFrom ? conn.targetNodeId : newGlobalNode.id,
           relation: conn.relation,

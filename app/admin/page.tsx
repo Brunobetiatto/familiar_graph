@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DirectNodeModal from './components/DirectNodeModal'; // 1. IMPORT AQUI NO TOPO
-import { getGlobalTag } from '@/lib/global-tags';
+import TagManager from './components/TagManager';
+import { findRelationLabel } from '@/lib/global-relations';
+import { OFFICIAL_GLOBAL_TAGS, getGlobalTag, type GlobalTag } from '@/lib/global-tags';
 
 type RequestConnection = {
   id: string;
@@ -34,6 +36,7 @@ export default function AdminDashboard() {
   const [requests, setRequests] = useState<NodeRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [globalTags, setGlobalTags] = useState<GlobalTag[]>(OFFICIAL_GLOBAL_TAGS);
   const router = useRouter();
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
 
@@ -42,7 +45,19 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchRequests();
+    fetchTags();
   }, []);
+
+  async function fetchTags() {
+    try {
+      const res = await fetch('/api/global-tags');
+      if (!res.ok) return;
+      const tags = (await res.json()) as GlobalTag[];
+      if (tags.length > 0) setGlobalTags(tags);
+    } catch (err) {
+      console.error('Erro ao buscar tags:', err);
+    }
+  }
 
   async function fetchRequests() {
     try {
@@ -101,7 +116,7 @@ export default function AdminDashboard() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#0f0d0b', padding: '40px 20px', fontFamily: '"DM Serif Display", Georgia, serif' }}>
-      <div style={{ maxWidth: 800, margin: '0 auto' }}>
+      <div style={{ maxWidth: 1040, margin: '0 auto' }}>
         
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
           <div>
@@ -129,6 +144,8 @@ export default function AdminDashboard() {
         </div>
         
 
+        <TagManager onTagsChange={setGlobalTags} />
+
         {error && <p style={{ color: '#ff6b6b' }}>{error}</p>}
 
         {requests.length === 0 ? (
@@ -138,12 +155,17 @@ export default function AdminDashboard() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {requests.map((req) => {
-              const tag = getGlobalTag(req.nodeTagSlug);
+              const tag =
+                globalTags.find((item) => item.slug === req.nodeTagSlug) ??
+                getGlobalTag(req.nodeTagSlug);
               const primaryConnection = req.connections[0];
+              const relationLabel = primaryConnection
+                ? findRelationLabel(tag.relations, primaryConnection.relation)
+                : '';
               const hasConnections = req.connections.length > 0;
               const summary = hasConnections
                 ? req.connections.length === 1
-                  ? `Conectar a ${primaryConnection.globalNode.name} como ${primaryConnection.relation}`
+                  ? `Conectar a ${primaryConnection.globalNode.name} como ${relationLabel}`
                   : `Conectar a ${primaryConnection.globalNode.name} e mais ${req.connections.length - 1}`
                 : 'Sem conexoes';
               const isExpanded = expandedRequestId === req.id;
@@ -302,7 +324,10 @@ export default function AdminDashboard() {
                           </p>
                         ) : (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-                            {req.connections.map((connection) => (
+                            {req.connections.map((connection) => {
+                              const connectionRelationLabel = findRelationLabel(tag.relations, connection.relation);
+
+                              return (
                               <div
                                 key={connection.id}
                                 style={{
@@ -317,7 +342,7 @@ export default function AdminDashboard() {
                               >
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
                                   <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{connection.globalNode.name}</span>
-                                  <span style={{ color: '#c49a2a' }}>{connection.relation}</span>
+                                  <span style={{ color: '#c49a2a' }}>{connectionRelationLabel}</span>
                                   <span style={{ color: '#8a7856', fontSize: 12 }}>
                                     {connection.newNodeIsFrom ? 'Novo no -> alvo' : 'Alvo -> novo no'}
                                   </span>
@@ -363,7 +388,8 @@ export default function AdminDashboard() {
                                   </div>
                                 )}
                               </div>
-                            ))}
+                            );
+                            })}
                           </div>
                         )}
                       </div>

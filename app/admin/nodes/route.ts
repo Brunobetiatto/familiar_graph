@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
+import { DEFAULT_GLOBAL_TAG_SLUG } from '@/lib/global-tags';
+import { normalizeAllowedRelationsForTag } from '@/lib/global-tags-server';
 
 interface NodeData {
   name: string;
@@ -45,6 +47,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Máximo de 5 conexões simultâneas permitido.' }, { status: 400 });
     }
 
+    let allowedRelationKeys: string[] = [];
+
+    try {
+      allowedRelationKeys = await normalizeAllowedRelationsForTag(
+        DEFAULT_GLOBAL_TAG_SLUG,
+        (connections ?? []).map((conn) => conn.relation)
+      );
+    } catch (relationError) {
+      const message = relationError instanceof Error ? relationError.message : 'Relação inválida para esta tag.';
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+
+    const connectionsWithAllowedRelations =
+      connections?.map((conn, index) => ({ ...conn, relation: allowedRelationKeys[index] })) ?? [];
+
     // 2. Transação para criar o Nó e as Arestas de uma só vez
     const result = await prisma.$transaction(async (tx: typeof prisma) => {
       // Cria o nó global
@@ -60,8 +77,8 @@ export async function POST(request: Request) {
       });
 
       // Se o admin escolheu conectar a nós existentes, cria as arestas
-      if (connections && connections.length > 0) {
-        const edgesToCreate = connections.map((conn: ConnectionData) => ({
+      if (connectionsWithAllowedRelations.length > 0) {
+        const edgesToCreate = connectionsWithAllowedRelations.map((conn: ConnectionData) => ({
           fromId: conn.newNodeIsFrom ? newGlobalNode.id : conn.targetNodeId,
           toId: conn.newNodeIsFrom ? conn.targetNodeId : newGlobalNode.id,
           relation: conn.relation,

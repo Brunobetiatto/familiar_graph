@@ -90,6 +90,21 @@ type GraphWindowResponse = {
 
 const NODE_WIDTH = 200;
 const NODE_HEIGHT = 80;
+const GRAPH_MIN_ZOOM = 0.12;
+
+function getGraphFitPadding(nodeCount: number): number {
+  if (nodeCount <= 1) return 0.42;
+  if (nodeCount <= 8) return 0.34;
+  if (nodeCount <= 40) return 0.24;
+  return 0.18;
+}
+
+function getGraphFitMaxZoom(nodeCount: number): number {
+  if (nodeCount <= 1) return 1.05;
+  if (nodeCount <= 8) return 0.95;
+  if (nodeCount <= 40) return 0.82;
+  return 0.68;
+}
 
 export default function GlobalGraphFlow({
   initialNodes,
@@ -102,6 +117,9 @@ export default function GlobalGraphFlow({
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const flowInstanceRef = useRef<ReactFlowInstance<Node, Edge> | null>(null);
+  const pendingFitRef = useRef<{ nodeIds: string[]; nodeCount: number; duration: number } | null>(
+    null
+  );
 
   const [selectedNodeData, setSelectedNodeData] = useState<
     (PersonNodeData & { id: string }) | null
@@ -145,6 +163,35 @@ export default function GlobalGraphFlow({
     }, 260);
   }, [clearSearchCloseTimer, closeSearchArea]);
 
+  const fitGraphContent = useCallback((graphNodes: Node[], duration = 520) => {
+    const nodeIds = graphNodes.map((node) => node.id);
+    const nodeCount = nodeIds.length;
+
+    if (nodeCount === 0) return;
+
+    const runFit = () => {
+      const flow = flowInstanceRef.current;
+
+      if (!flow) {
+        pendingFitRef.current = { nodeIds, nodeCount, duration };
+        return;
+      }
+
+      void flow.fitView({
+        nodes: nodeIds.map((id) => ({ id })),
+        padding: getGraphFitPadding(nodeCount),
+        minZoom: GRAPH_MIN_ZOOM,
+        maxZoom: getGraphFitMaxZoom(nodeCount),
+        duration,
+        interpolate: 'smooth',
+      });
+    };
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(runFit);
+    });
+  }, []);
+
   const applyGraphWindow = useCallback(
     async (
       graphNodes: Node[],
@@ -180,6 +227,7 @@ export default function GlobalGraphFlow({
 
         setNodes(nextNodes);
         setEdges(laidOutEdges);
+        fitGraphContent(nextNodes, selectedNodeId ? 560 : 420);
 
         if (selectedNodeId) {
           const selectedNode = nextNodes.find((node) => node.id === selectedNodeId);
@@ -187,14 +235,6 @@ export default function GlobalGraphFlow({
             setSelectedNodeData({
               id: selectedNode.id,
               ...(selectedNode.data as PersonNodeData),
-            });
-
-            window.requestAnimationFrame(() => {
-              flowInstanceRef.current?.setCenter(
-                selectedNode.position.x + NODE_WIDTH / 2,
-                selectedNode.position.y + NODE_HEIGHT / 2,
-                { zoom: 1.1, duration: 450 }
-              );
             });
           }
         }
@@ -209,6 +249,7 @@ export default function GlobalGraphFlow({
 
         setNodes(nextNodes);
         setEdges(graphEdges);
+        fitGraphContent(nextNodes, selectedNodeId ? 560 : 420);
 
         if (selectedNodeId) {
           const selectedNode = nextNodes.find((node) => node.id === selectedNodeId);
@@ -223,7 +264,7 @@ export default function GlobalGraphFlow({
         setLayoutReady(true);
       }
     },
-    [setEdges, setNodes]
+    [fitGraphContent, setEdges, setNodes]
   );
 
   useEffect(() => {
@@ -235,6 +276,15 @@ export default function GlobalGraphFlow({
   }, [activeTag.slug]);
 
   useEffect(() => () => clearSearchCloseTimer(), [clearSearchCloseTimer]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      fitGraphContent(nodes, 280);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [fitGraphContent, nodes]);
 
   useEffect(() => {
     if (searchQuery.trim().length < 2) {
@@ -826,13 +876,26 @@ export default function GlobalGraphFlow({
         onPaneClick={onPaneClick}
         onInit={(instance) => {
           flowInstanceRef.current = instance;
+          const pendingFit = pendingFitRef.current;
+
+          if (pendingFit) {
+            pendingFitRef.current = null;
+            window.requestAnimationFrame(() => {
+              void instance.fitView({
+                nodes: pendingFit.nodeIds.map((id) => ({ id })),
+                padding: getGraphFitPadding(pendingFit.nodeCount),
+                minZoom: GRAPH_MIN_ZOOM,
+                maxZoom: getGraphFitMaxZoom(pendingFit.nodeCount),
+                duration: pendingFit.duration,
+                interpolate: 'smooth',
+              });
+            });
+          }
         }}
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
-        minZoom={0.1}
+        minZoom={GRAPH_MIN_ZOOM}
         maxZoom={2.5}
         onlyRenderVisibleElements
         proOptions={{ hideAttribution: true }}

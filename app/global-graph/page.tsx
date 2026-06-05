@@ -1,6 +1,6 @@
 import GlobalGraphFlow from '@/app/components/graph/GlobalGraphFlow';
 import { getGlobalGraphWindow } from '@/lib/global-graph-window';
-import { OFFICIAL_GLOBAL_TAGS } from '@/lib/global-tags';
+import { listGlobalTags } from '@/lib/global-tags-server';
 
 // Garante que a página sempre retorna dados frescos (sem cache estático)
 export const dynamic = 'force-dynamic';
@@ -11,7 +11,10 @@ export const metadata = {
 };
 
 export default async function GlobalGraphPage() {
-  const graphWindow = await getGlobalGraphWindow();
+  const [graphWindow, globalTags] = await Promise.all([
+    getGlobalGraphWindow(),
+    listGlobalTags(),
+  ]);
 
   return (
     <GlobalGraphFlow
@@ -20,7 +23,7 @@ export default async function GlobalGraphPage() {
       initialRootNode={graphWindow.rootNode}
       graphLimit={graphWindow.limit}
       initialActiveTag={graphWindow.activeTag}
-      officialTags={OFFICIAL_GLOBAL_TAGS}
+      officialTags={globalTags}
     />
   );
 }

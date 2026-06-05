@@ -3,7 +3,15 @@
 import { useMemo, useState, useEffect } from 'react';
 import { handleKeyboardFormNavigation } from '@/lib/keyboard-navigation';
 import RichTextEditor, { type RichTextImageAsset } from '@/app/components/RichTextEditor';
-import { DEFAULT_GLOBAL_TAG_SLUG, OFFICIAL_GLOBAL_TAGS } from '@/lib/global-tags';
+import {
+  DEFAULT_GLOBAL_TAG_SLUG,
+  OFFICIAL_GLOBAL_TAGS,
+  type GlobalTag,
+} from '@/lib/global-tags';
+import {
+  DEFAULT_GLOBAL_RELATIONS,
+  type GlobalTagRelation,
+} from '@/lib/global-relations';
 
 type Connection = {
   targetNodeId: string;
@@ -31,6 +39,7 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
   const [birthDate, setBirthDate] = useState('');
   const [bio, setBio] = useState('');
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [availableTags, setAvailableTags] = useState<GlobalTag[]>(OFFICIAL_GLOBAL_TAGS);
   const photoPreviewUrl = useMemo(
     () => (photoFile ? URL.createObjectURL(photoFile) : ''),
     [photoFile]
@@ -44,6 +53,15 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
   // Estados de UI
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const relationOptions = useMemo<GlobalTagRelation[]>(() => {
+    const selectedTag = availableTags.find((tag) => tag.slug === tagSlug);
+    return selectedTag?.relations?.length ? selectedTag.relations : DEFAULT_GLOBAL_RELATIONS;
+  }, [availableTags, tagSlug]);
+  const defaultRelationKey = relationOptions[0]?.key ?? 'OTHER';
+  const allowedRelationKeys = useMemo(
+    () => new Set(relationOptions.map((relation) => relation.key)),
+    [relationOptions]
+  );
 
   // Efeito para pesquisar nós (Debounce simples)
   useEffect(() => {
@@ -70,10 +88,37 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
   }, [searchQuery, connections, tagSlug]);
 
   useEffect(() => {
+    if (!isOpen) return;
+
+    async function fetchTags() {
+      try {
+        const res = await fetch('/api/global-tags');
+        if (!res.ok) return;
+        const tags = (await res.json()) as GlobalTag[];
+        if (tags.length > 0) setAvailableTags(tags);
+      } catch (err) {
+        console.error('Erro ao buscar tags globais:', err);
+      }
+    }
+
+    void fetchTags();
+  }, [isOpen]);
+
+  useEffect(() => {
     return () => {
       if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
     };
   }, [photoPreviewUrl]);
+
+  useEffect(() => {
+    setConnections((prev) =>
+      prev.map((connection) =>
+        allowedRelationKeys.has(connection.relation)
+          ? connection
+          : { ...connection, relation: defaultRelationKey }
+      )
+    );
+  }, [allowedRelationKeys, defaultRelationKey]);
 
   if (!isOpen) return null;
 
@@ -88,7 +133,7 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
       {
         targetNodeId: targetId,
         targetNodeName: targetName,
-        relation: 'FRIEND',
+        relation: defaultRelationKey,
         newNodeIsFrom: true,
         description: '',
         documentTitle: '',
@@ -223,7 +268,7 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
               <div style={{ flex: 1 }}>
                 <Label>Tema</Label>
                 <Select value={tagSlug} onChange={(e: any) => setTagSlug(e.target.value)}>
-                  {OFFICIAL_GLOBAL_TAGS.map((tag) => (
+                  {availableTags.map((tag) => (
                     <option key={tag.slug} value={tag.slug}>
                       {tag.label}
                     </option>
@@ -366,11 +411,11 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
 
                     {/* Tipo de Relação */}
                     <Select style={{ flex: 1 }} value={conn.relation} onChange={(e: any) => updateConnection(conn.targetNodeId, 'relation', e.target.value)}>
-                      <option value="PARENT">Pai/Mãe</option>
-                      <option value="CHILD">Filho(a)</option>
-                      <option value="SPOUSE">Cônjuge</option>
-                      <option value="FRIEND">Amigo(a)</option>
-                      <option value="TEAMMATE">Colega de Equipe</option>
+                      {relationOptions.map((option) => (
+                        <option key={option.key} value={option.key}>
+                          {option.label}
+                        </option>
+                      ))}
                     </Select>
                   </div>
 

@@ -160,7 +160,7 @@ model NodeRequestConn {
   id            String       @id @default(uuid())
   requestId     String
   globalNodeId  String
-  relation      RelationType
+  relation      String
   newNodeIsFrom Boolean
   description   String?      @db.Text
   documentTitle String?
@@ -195,11 +195,48 @@ model GlobalNode {
   @@map("GLOBAL_NODE")
 }
 
+model GlobalTag {
+  id           String   @id @default(uuid())
+  slug         String   @unique
+  label        String
+  description  String   @db.Text
+  background   String
+  surface      String
+  border       String
+  primary      String
+  secondary    String
+  muted        String
+  node         String
+  nodeSelected String
+  edge         String
+  edgeSelected String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  relations    GlobalTagRelation[]
+
+  @@map("GLOBAL_TAG")
+}
+
+model GlobalTagRelation {
+  id        String   @id @default(uuid())
+  tagSlug   String
+  key       String
+  label     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tag       GlobalTag @relation(fields: [tagSlug], references: [slug], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([tagSlug, key])
+  @@index([tagSlug])
+  @@map("GLOBAL_TAG_RELATION")
+}
+
 model GlobalEdge {
   id          String       @id @default(uuid())
   fromId      String
   toId        String
-  relation    RelationType
+  relation    String
   description String?      @db.Text
   documentTitle String?
   documentContent String?  @db.Text

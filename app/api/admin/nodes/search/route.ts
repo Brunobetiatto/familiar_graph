@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
-import { normalizeGlobalTagSlug } from '@/lib/global-tags';
+import { resolveGlobalTagSlug } from '@/lib/global-tags-server';
 
 export async function GET(request: Request) {
   try {
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     // 3. Busca no banco de dados usando ILIKE (insensitive)
     const nodes = await prisma.globalNode.findMany({
       where: {
-        ...(tagSlug ? { tagSlug: normalizeGlobalTagSlug(tagSlug) } : {}),
+        ...(tagSlug ? { tagSlug: await resolveGlobalTagSlug(tagSlug) } : {}),
         name: {
           contains: query,
           mode: 'insensitive',

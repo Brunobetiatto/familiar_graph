@@ -1,6 +1,12 @@
 import type { Edge, Node } from '@xyflow/react';
 import { prisma } from '@/lib/prisma';
-import { DEFAULT_GLOBAL_TAG_SLUG, getGlobalTag, normalizeGlobalTagSlug } from '@/lib/global-tags';
+import { findRelationLabel } from '@/lib/global-relations';
+import { DEFAULT_GLOBAL_TAG_SLUG, getGlobalTag, type GlobalTag } from '@/lib/global-tags';
+import {
+  getGlobalTagFromDb,
+  listGlobalTags,
+  resolveGlobalTagSlug,
+} from '@/lib/global-tags-server';
 
 export const GLOBAL_GRAPH_NODE_LIMIT = 200;
 const GLOBAL_GRAPH_EDGE_LIMIT = 260;
@@ -41,7 +47,7 @@ export type GlobalGraphWindow = {
   edges: Edge<GlobalEdgeData>[];
   rootNode: { id: string; name: string } | null;
   limit: number;
-  activeTag: ReturnType<typeof getGlobalTag>;
+  activeTag: GlobalTag;
 };
 
 function addNeighbor(adjacency: Map<string, string[]>, nodeId: string, neighborId: string) {
@@ -78,8 +84,8 @@ function collectNodeWindow(seedNodeId: string, edges: DbEdge[], limit: number): 
   return selectedIds;
 }
 
-function formatNode(node: DbNode): Node<GlobalNodeData> {
-  const tag = getGlobalTag(node.tagSlug);
+function formatNode(node: DbNode, tagBySlug: Map<string, GlobalTag>): Node<GlobalNodeData> {
+  const tag = tagBySlug.get(node.tagSlug) ?? getGlobalTag(node.tagSlug);
 
   return {
     id: node.id,
@@ -100,15 +106,23 @@ function formatNode(node: DbNode): Node<GlobalNodeData> {
   };
 }
 
-function formatEdge(edge: DbEdge): Edge<GlobalEdgeData> {
+function formatEdge(
+  edge: DbEdge,
+  nodeTagById: Map<string, string>,
+  tagBySlug: Map<string, GlobalTag>
+): Edge<GlobalEdgeData> {
+  const sourceTagSlug = nodeTagById.get(edge.fromId);
+  const sourceTag = tagBySlug.get(sourceTagSlug ?? '') ?? getGlobalTag(sourceTagSlug);
+  const relationLabel = findRelationLabel(sourceTag.relations, edge.relation);
+
   return {
     id: edge.id,
     source: edge.fromId,
     target: edge.toId,
-    label: edge.relation,
+    label: relationLabel,
     type: 'elk',
     data: {
-      relation: edge.relation,
+      relation: relationLabel,
       description: edge.description,
       documentTitle: edge.documentTitle,
       documentContent: edge.documentContent,
@@ -156,8 +170,10 @@ export async function getGlobalGraphWindow({
   tagSlug = DEFAULT_GLOBAL_TAG_SLUG,
 }: GlobalGraphWindowOptions = {}): Promise<GlobalGraphWindow> {
   const safeLimit = Math.max(1, Math.min(limit, GLOBAL_GRAPH_NODE_LIMIT));
-  const activeTag = getGlobalTag(tagSlug);
-  const normalizedTagSlug = normalizeGlobalTagSlug(tagSlug);
+  const normalizedTagSlug = await resolveGlobalTagSlug(tagSlug);
+  const activeTag = await getGlobalTagFromDb(normalizedTagSlug);
+  const allTags = await listGlobalTags();
+  const tagBySlug = new Map(allTags.map((tag) => [tag.slug, tag]));
   const tagFilter = { tagSlug: normalizedTagSlug };
 
   const seedNode = seedNodeId
@@ -242,14 +258,15 @@ export async function getGlobalGraphWindow({
   });
 
   const validIds = new Set(dbNodes.map((node) => node.id));
+  const nodeTagById = new Map(dbNodes.map((node) => [node.id, node.tagSlug]));
   const dbEdges = limitEdgesForWindow(
     allEdges.filter((edge) => validIds.has(edge.fromId) && validIds.has(edge.toId)),
     effectiveSeedNode.id
   );
 
   return {
-    nodes: dbNodes.map(formatNode),
-    edges: dbEdges.map(formatEdge),
+    nodes: dbNodes.map((node) => formatNode(node, tagBySlug)),
+    edges: dbEdges.map((edge) => formatEdge(edge, nodeTagById, tagBySlug)),
     rootNode: effectiveSeedNode,
     limit: safeLimit,
     activeTag,

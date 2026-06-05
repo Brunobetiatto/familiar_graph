@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import type { Prisma } from '@prisma/client';
-import { normalizeGlobalTagSlug } from '@/lib/global-tags';
+import {
+  normalizeAllowedRelationForTag,
+  resolveGlobalTagSlug,
+} from '@/lib/global-tags-server';
 
 export async function POST(request: Request) {
   try {
@@ -28,6 +31,7 @@ export async function POST(request: Request) {
     const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       
       const idMap = new Map<string, string>(); // Mapeia o tempId para o ID real do banco
+      const tagById = new Map<string, string>();
       const createdNodes = [];
 
       // Passo A: Criar todos os nós um por um para capturar os IDs gerados
@@ -36,26 +40,31 @@ export async function POST(request: Request) {
           throw new Error('Todos os nós precisam de "tempId" e "name".');
         }
 
+        const tagSlug = await resolveGlobalTagSlug(node.tagSlug);
         const created = await tx.globalNode.create({
           data: {
             name: node.name,
             gender: node.gender || null,
             birthDate: node.birthDate ? new Date(node.birthDate) : null,
             bio: node.bio || null,
-            tagSlug: normalizeGlobalTagSlug(node.tagSlug),
+            tagSlug,
             createdById: userId,
           }
         });
         
         // Salva a relação: "node1" -> "550e8400-e29b-41d4-a716-446655440000"
         idMap.set(node.tempId, created.id);
+        tagById.set(created.id, tagSlug);
+        tagById.set(node.tempId, tagSlug);
         createdNodes.push(created);
       }
 
       // Passo B: Criar as arestas (relacionamentos) substituindo os IDs temporários
       let createdEdgesCount = 0;
       if (edges && Array.isArray(edges) && edges.length > 0) {
-        const edgesToCreate = edges.map((edge) => {
+        const edgesToCreate: Prisma.GlobalEdgeCreateManyInput[] = [];
+
+        for (const edge of edges) {
           
           // Traduz os IDs temporários para os IDs reais do banco
           // Ou usa o ID real direto, caso você esteja conectando a alguém que JÁ existia antes do teste
@@ -66,14 +75,30 @@ export async function POST(request: Request) {
             throw new Error(`Referência inválida na aresta: ${edge.fromTempId} -> ${edge.toTempId}. Certifique-se de que o nó existe.`);
           }
 
-          return {
+          let tagSlug = tagById.get(fromId) ?? tagById.get(edge.fromTempId);
+
+          if (!tagSlug) {
+            const fromNode = await tx.globalNode.findUnique({
+              where: { id: fromId },
+              select: { tagSlug: true },
+            });
+            tagSlug = fromNode?.tagSlug;
+          }
+
+          if (!tagSlug) {
+            throw new Error(`Nó de origem não encontrado para validar a relação: ${edge.fromTempId}.`);
+          }
+
+          const relation = await normalizeAllowedRelationForTag(tagSlug, edge.relation);
+
+          edgesToCreate.push({
             fromId,
             toId,
-            relation: edge.relation,
+            relation,
             description: edge.description?.trim() || null,
             createdById: userId,
-          };
-        });
+          });
+        }
 
         const edgesResult = await tx.globalEdge.createMany({
           data: edgesToCreate

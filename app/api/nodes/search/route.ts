@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
-import { normalizeGlobalTagSlug } from '@/lib/global-tags';
+import { resolveGlobalTagSlug } from '@/lib/global-tags-server';
 
 export async function GET(request: Request) {
   try {
@@ -11,7 +11,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
-    const tagSlug = normalizeGlobalTagSlug(searchParams.get('tagSlug'));
+    const tagSlug = await resolveGlobalTagSlug(searchParams.get('tagSlug'));
 
     if (!query || query.length < 2) {
       return NextResponse.json([], { status: 200 });

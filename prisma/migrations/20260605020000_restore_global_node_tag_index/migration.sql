@@ -1,0 +1,1 @@
+CREATE INDEX "GLOBAL_NODE_tagSlug_idx" ON "GLOBAL_NODE"("tagSlug");

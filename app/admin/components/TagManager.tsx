@@ -1,0 +1,381 @@
+'use client';
+
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import {
+  DEFAULT_GLOBAL_TAG_SLUG,
+  OFFICIAL_GLOBAL_TAGS,
+  slugifyGlobalTag,
+  type GlobalTag,
+  type GlobalTagTheme,
+} from '@/lib/global-tags';
+import {
+  normalizeRelationKey,
+  normalizeTagRelations,
+  type GlobalTagRelation,
+} from '@/lib/global-relations';
+
+type Props = {
+  onTagsChange?: (tags: GlobalTag[]) => void;
+};
+
+type TagForm = {
+  currentSlug?: string;
+  slug: string;
+  label: string;
+  description: string;
+  theme: GlobalTagTheme;
+  relations: GlobalTagRelation[];
+};
+
+const COLOR_FIELDS: Array<{ key: keyof GlobalTagTheme; label: string }> = [
+  { key: 'background', label: 'Fundo' },
+  { key: 'surface', label: 'Superficie' },
+  { key: 'border', label: 'Borda' },
+  { key: 'primary', label: 'Primaria' },
+  { key: 'secondary', label: 'Texto' },
+  { key: 'muted', label: 'Texto suave' },
+  { key: 'node', label: 'No' },
+  { key: 'nodeSelected', label: 'No selecionado' },
+  { key: 'edge', label: 'Aresta' },
+  { key: 'edgeSelected', label: 'Aresta selecionada' },
+];
+
+function createFormFromTag(tag: GlobalTag): TagForm {
+  return {
+    currentSlug: tag.slug,
+    slug: tag.slug,
+    label: tag.label,
+    description: tag.description,
+    theme: { ...tag.theme },
+    relations: tag.relations.map((relation) => ({ ...relation })),
+  };
+}
+
+function createBlankForm(): TagForm {
+  const base = OFFICIAL_GLOBAL_TAGS[0];
+
+  return {
+    slug: '',
+    label: '',
+    description: '',
+    theme: { ...base.theme },
+    relations: base.relations.map((relation) => ({ ...relation })),
+  };
+}
+
+export default function TagManager({ onTagsChange }: Props) {
+  const [tags, setTags] = useState<GlobalTag[]>(OFFICIAL_GLOBAL_TAGS);
+  const [selectedSlug, setSelectedSlug] = useState(DEFAULT_GLOBAL_TAG_SLUG);
+  const [form, setForm] = useState<TagForm>(createFormFromTag(OFFICIAL_GLOBAL_TAGS[0]));
+  const [mode, setMode] = useState<'edit' | 'create'>('edit');
+  const [error, setError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  const selectedTag = useMemo(
+    () => tags.find((tag) => tag.slug === selectedSlug) ?? tags[0],
+    [selectedSlug, tags]
+  );
+
+  useEffect(() => {
+    void fetchTags();
+  }, []);
+
+  useEffect(() => {
+    if (mode !== 'edit' || !selectedTag) return;
+    setForm(createFormFromTag(selectedTag));
+  }, [mode, selectedTag]);
+
+  async function fetchTags() {
+    try {
+      const res = await fetch('/api/admin/global-tags');
+      if (!res.ok) return;
+      const data = (await res.json()) as GlobalTag[];
+      if (data.length === 0) return;
+      setTags(data);
+      onTagsChange?.(data);
+      setSelectedSlug((current) => (data.some((tag) => tag.slug === current) ? current : data[0].slug));
+    } catch (err) {
+      console.error('Erro ao buscar tags:', err);
+    }
+  }
+
+  function updateTheme(key: keyof GlobalTagTheme, value: string) {
+    setForm((current) => ({
+      ...current,
+      theme: {
+        ...current.theme,
+        [key]: value,
+      },
+    }));
+  }
+
+  function addRelation() {
+    setForm((current) => ({
+      ...current,
+      relations: [...current.relations, { key: '', label: '' }],
+    }));
+  }
+
+  function updateRelation(index: number, field: keyof GlobalTagRelation, value: string) {
+    setForm((current) => ({
+      ...current,
+      relations: current.relations.map((relation, relationIndex) => {
+        if (relationIndex !== index) return relation;
+
+        if (field === 'key') {
+          return { ...relation, key: normalizeRelationKey(value) };
+        }
+
+        return {
+          ...relation,
+          label: value,
+          key: relation.key || normalizeRelationKey(value),
+        };
+      }),
+    }));
+  }
+
+  function removeRelation(index: number) {
+    setForm((current) => {
+      const nextRelations = current.relations.filter((_, relationIndex) => relationIndex !== index);
+
+      return {
+        ...current,
+        relations: nextRelations.length > 0 ? nextRelations : [{ key: 'OTHER', label: 'Outro' }],
+      };
+    });
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setIsSaving(true);
+    setError('');
+
+    try {
+      const payload = {
+        currentSlug: form.currentSlug,
+        slug: form.slug || slugifyGlobalTag(form.label),
+        label: form.label,
+        description: form.description,
+        theme: form.theme,
+        relations: normalizeTagRelations(form.relations),
+      };
+      const res = await fetch('/api/admin/global-tags', {
+        method: mode === 'create' ? 'POST' : 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Erro ao salvar tag.');
+      }
+
+      const saved = (await res.json()) as GlobalTag;
+      await fetchTags();
+      setMode('edit');
+      setSelectedSlug(saved.slug);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao salvar tag.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <section style={{ marginBottom: 28, background: '#111009', border: '1px solid #3a3020', borderRadius: 12, padding: 18 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 16 }}>
+        <div>
+          <h2 style={{ color: '#f0e6d3', margin: 0, fontSize: 20 }}>Tags do Grafo Global</h2>
+          <p style={{ color: '#8a7856', margin: '6px 0 0', fontFamily: 'sans-serif', fontSize: 13 }}>
+            Crie temas e personalize as cores usadas no filtro e no grafo.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setMode('create');
+            setForm(createBlankForm());
+          }}
+          style={{ padding: '9px 12px', background: '#c49a2a', color: '#0f0d0b', border: 0, borderRadius: 7, cursor: 'pointer', fontWeight: 700 }}
+        >
+          Nova tag
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 0.8fr) minmax(0, 1.4fr)', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {tags.map((tag) => (
+            <button
+              key={tag.slug}
+              type="button"
+              onClick={() => {
+                setMode('edit');
+                setSelectedSlug(tag.slug);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '10px 12px',
+                background: mode === 'edit' && selectedSlug === tag.slug ? '#1d180f' : '#181410',
+                color: '#f0e6d3',
+                border: `1px solid ${mode === 'edit' && selectedSlug === tag.slug ? tag.theme.primary : '#2a2218'}`,
+                borderRadius: 7,
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              <span style={{ width: 12, height: 12, borderRadius: '50%', background: tag.theme.primary, flexShrink: 0 }} />
+              <span style={{ minWidth: 0 }}>
+                <strong style={{ display: 'block', fontSize: 13 }}>{tag.label}</strong>
+                <span style={{ display: 'block', color: '#8a7856', fontSize: 11, fontFamily: 'sans-serif' }}>{tag.slug}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ background: '#181410', border: '1px solid #2a2218', borderRadius: 8, padding: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Nome">
+              <input
+                value={form.label}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    label: event.target.value,
+                    slug: mode === 'create' ? slugifyGlobalTag(event.target.value) : current.slug,
+                  }))
+                }
+                required
+                style={inputStyle}
+              />
+            </Field>
+            <Field label="Slug">
+              <input
+                value={form.slug}
+                onChange={(event) => setForm((current) => ({ ...current, slug: slugifyGlobalTag(event.target.value) }))}
+                required
+                style={inputStyle}
+              />
+            </Field>
+          </div>
+
+          <Field label="Descricao">
+            <textarea
+              value={form.description}
+              onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+              style={{ ...inputStyle, minHeight: 62, resize: 'vertical' }}
+            />
+          </Field>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))', gap: 10, marginTop: 12 }}>
+            {COLOR_FIELDS.map((field) => (
+              <Field key={field.key} label={field.label}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="color"
+                    value={form.theme[field.key]}
+                    onChange={(event) => updateTheme(field.key, event.target.value)}
+                    style={{ width: 38, height: 34, padding: 0, border: '1px solid #3a3020', background: 'transparent', borderRadius: 6 }}
+                  />
+                  <input
+                    value={form.theme[field.key]}
+                    onChange={(event) => updateTheme(field.key, event.target.value)}
+                    style={{ ...inputStyle, padding: '8px 9px', fontSize: 12 }}
+                  />
+                </div>
+              </Field>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 14, padding: 12, borderRadius: 8, border: `1px solid ${form.theme.border}`, background: form.theme.surface }}>
+            <span style={{ color: form.theme.muted, fontSize: 11, textTransform: 'uppercase', fontFamily: 'sans-serif' }}>Preview</span>
+            <h3 style={{ color: form.theme.secondary, margin: '4px 0 6px', fontSize: 18 }}>{form.label || 'Nova tag'}</h3>
+            <p style={{ color: form.theme.muted, margin: 0, fontFamily: 'sans-serif', fontSize: 12 }}>{form.description || 'Descricao do tema'}</p>
+            <div style={{ marginTop: 10, height: 3, borderRadius: 99, background: form.theme.primary }} />
+          </div>
+
+          <div style={{ marginTop: 14, padding: 12, borderRadius: 8, border: '1px solid #2a2218', background: '#111009' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+              <div>
+                <span style={{ color: '#5a4e38', fontSize: 10, textTransform: 'uppercase', fontFamily: 'sans-serif' }}>
+                  Relacoes permitidas
+                </span>
+                <p style={{ color: '#8a7856', margin: '4px 0 0', fontSize: 12, fontFamily: 'sans-serif' }}>
+                  O usuario so podera escolher estas relacoes ao criar nos deste tema.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={addRelation}
+                style={{ padding: '8px 10px', background: '#231d16', color: '#f0e6d3', border: '1px solid #3a3020', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}
+              >
+                Adicionar
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {form.relations.map((relation, index) => (
+                <div key={`${index}-${relation.key}`} style={{ display: 'grid', gridTemplateColumns: '0.85fr 1fr auto', gap: 8, alignItems: 'center' }}>
+                  <input
+                    value={relation.key}
+                    onChange={(event) => updateRelation(index, 'key', event.target.value)}
+                    placeholder="CHAVE_TECNICA"
+                    style={{ ...inputStyle, padding: '8px 9px', fontSize: 12 }}
+                  />
+                  <input
+                    value={relation.label}
+                    onChange={(event) => updateRelation(index, 'label', event.target.value)}
+                    placeholder="Rotulo visivel"
+                    style={{ ...inputStyle, padding: '8px 9px', fontSize: 12 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeRelation(index)}
+                    style={{ height: 34, padding: '0 10px', background: 'transparent', color: '#ff6b6b', border: '1px solid #4a241e', borderRadius: 6, cursor: 'pointer' }}
+                  >
+                    Remover
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {error && <p style={{ color: '#ff6b6b', fontSize: 12, fontFamily: 'sans-serif' }}>{error}</p>}
+
+          <button
+            type="submit"
+            disabled={isSaving}
+            style={{ width: '100%', marginTop: 14, padding: '11px 12px', background: isSaving ? '#3a3020' : '#c49a2a', color: '#0f0d0b', border: 0, borderRadius: 7, cursor: isSaving ? 'not-allowed' : 'pointer', fontWeight: 700 }}
+          >
+            {isSaving ? 'Salvando...' : mode === 'create' ? 'Criar tag' : 'Salvar tag'}
+          </button>
+        </form>
+      </div>
+    </section>
+  );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label style={{ display: 'block', marginTop: 10 }}>
+      <span style={{ display: 'block', color: '#5a4e38', fontSize: 10, textTransform: 'uppercase', marginBottom: 5, fontFamily: 'sans-serif' }}>
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+const inputStyle: CSSProperties = {
+  width: '100%',
+  padding: '9px 10px',
+  borderRadius: 6,
+  border: '1px solid #3a3020',
+  background: '#0f0d0b',
+  color: '#f0e6d3',
+  fontFamily: 'sans-serif',
+  fontSize: 13,
+  outline: 'none',
+};
