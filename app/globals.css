@@ -273,6 +273,47 @@ html {
   font-size: 11px;
 }
 
+.rich-text-viewer {
+  background: transparent;
+  color: #e6dcc8;
+  font-family: sans-serif;
+}
+
+.rich-text-viewer .ql-container.ql-snow {
+  background: transparent;
+  border: 0;
+  color: #e6dcc8;
+  font-size: 15px;
+}
+
+.rich-text-viewer .ql-editor {
+  min-height: 0;
+  padding: 0;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+
+.rich-text-viewer .ql-editor h1,
+.rich-text-viewer .ql-editor h2,
+.rich-text-viewer .ql-editor h3 {
+  color: #f0e6d3;
+  font-family: "DM Serif Display", Georgia, serif;
+  line-height: 1.2;
+}
+
+.rich-text-viewer .ql-editor blockquote {
+  border-left-color: #b28a35;
+  color: #c8b898;
+}
+
+.rich-text-viewer .ql-editor a {
+  color: #c49a2a;
+}
+
+.rich-text-viewer .ql-editor img {
+  max-width: 100%;
+}
+
 .connection-document-backdrop {
   animation: backdropIn 0.24s ease both;
 }

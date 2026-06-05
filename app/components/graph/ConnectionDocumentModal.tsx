@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import RichTextViewer from '@/app/components/RichTextViewer';
 
 export type ConnectionDocument = {
   edgeId: string;
@@ -169,16 +170,7 @@ export default function ConnectionDocumentModal({ connection, onClose }: Props) 
           )}
 
           {connection.documentContent ? (
-            <article
-              dangerouslySetInnerHTML={{ __html: connection.documentContent }}
-              style={{
-                color: '#e6dcc8',
-                fontFamily: 'sans-serif',
-                fontSize: 15,
-                lineHeight: 1.8,
-                overflowWrap: 'anywhere',
-              }}
-            />
+            <RichTextViewer value={connection.documentContent} />
           ) : (
             !hasDocument && (
               <p style={{ margin: 0, color: '#5a4e38', fontFamily: 'sans-serif', fontSize: 14 }}>
