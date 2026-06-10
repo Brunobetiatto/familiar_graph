@@ -32,6 +32,9 @@ jobs:
       - name: Build application
         run: npm run build
 
+      - name: Apply database migrations
+        run: npx prisma migrate deploy
+
       - name: Prune development dependencies
         run: npm prune --omit=dev
 
@@ -64,11 +67,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: node-app
-
-      - name: Apply database migrations
-        run: npx prisma migrate deploy
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Login to Azure
         uses: azure/login@v2
