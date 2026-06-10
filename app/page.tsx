@@ -5,6 +5,37 @@ import Link from 'next/link';
 import styles from './page.module.css';
 import VantaNetBackground from '@/app/components/VantaNetBackground';
 
+const showcaseSections = [
+  {
+    eyebrow: 'Grafo global',
+    title: 'Explore conexoes por temas oficiais',
+    text: 'Navegue por um grafo compartilhado com busca, filtros por tag e recortes inteligentes de ate 200 nos. O usuario consegue investigar pessoas, eventos, documentos ou qualquer tema criado pelos administradores.',
+    imageClass: styles.globalGraphImage,
+    imageLabel: 'Tela do grafo global com busca, filtros por tema e nos conectados.',
+  },
+  {
+    eyebrow: 'Solicitacoes',
+    title: 'Envie novos nos sem quebrar a curadoria',
+    text: 'Qualquer usuario pode sugerir um novo no, adicionar foto, escolher o tema correto e conectar esse no a entidades existentes. A solicitacao entra em revisao antes de aparecer oficialmente no grafo.',
+    imageClass: styles.requestImage,
+    imageLabel: 'Formulario de solicitacao de novo no com tema, foto e conexoes opcionais.',
+  },
+  {
+    eyebrow: 'Documentos de ligacao',
+    title: 'Conte a historia por tras de cada aresta',
+    text: 'As ligacoes nao precisam ser apenas uma linha. Cada aresta pode abrir um documento rico com titulo, imagens, texto formatado e contexto historico, funcionando como um artigo dentro do grafo.',
+    imageClass: styles.documentImage,
+    imageLabel: 'Modal de documento da ligacao com imagem, titulo e conteudo em formato de artigo.',
+  },
+  {
+    eyebrow: 'Detalhes e contexto',
+    title: 'Entenda cada no sem sair da visualizacao',
+    text: 'Ao selecionar um no, a sidebar mostra biografia, imagem, tema, conexoes e resumos das ligacoes. O usuario pode abrir documentos relacionados ou solicitar novas conexoes a partir dali.',
+    imageClass: styles.detailsImage,
+    imageLabel: 'Sidebar de detalhes do no com biografia e conexoes relacionadas.',
+  },
+];
+
 export default function HomePage() {
   return (
     <div className={styles.container}>
@@ -33,7 +64,7 @@ export default function HomePage() {
             Familiar Graph
           </h1>
           <p className={styles.heroDescription}>
-            Mapeie conexões invisíveis. O Familiar Graph é uma plataforma colaborativa projetada para visualizar e expandir redes sociais, profissionais e genealógicas em um ambiente global único.
+            Uma plataforma colaborativa para visualizar relacoes, registrar documentos de ligacao e expandir grafos tematicos com curadoria.
           </p>
           
           <Link href="/graph-choice" className={styles.hoverBtn}>
@@ -44,39 +75,30 @@ export default function HomePage() {
 
       {/* ─── TELA 2: Conteúdo Zig-Zag Conectado pelo Grafo ─── */}
       <section className={styles.contentSection}>
-        
-        {/* Bloco 1: Texto à Esquerda, Imagem à Direita */}
-        <div className={styles.zigZagRow}>
-          <div className={styles.textContainer}>
-            <h2 className={styles.sectionTitle}>Construa Redes Globais</h2>
-            <p className={styles.sectionText}>
-              Vá muito além da genealogia tradicional. Conecte amigos, colegas de equipe, mentores e parceiros. Cada novo membro adicionado expande o mapa vivo de interações.
-            </p>
-          </div>
-          <div className={`${styles.zigZagImage} ${styles.img1}`} />
+        <div className={styles.sectionIntro}>
+          <span className={styles.sectionEyebrow}>O que existe no projeto</span>
+          <h2 className={styles.sectionIntroTitle}>Do mapa visual ao documento completo da relacao</h2>
+          <p className={styles.sectionIntroText}>
+            A experiencia combina grafo interativo, solicitacoes revisadas por administradores, temas oficiais e documentos ricos para explicar por que cada conexao existe.
+          </p>
         </div>
 
-        {/* Bloco 2: Imagem à Esquerda, Texto à Direita (row-reverse) */}
-        <div className={styles.zigZagRowReverse}>
-          <div className={styles.textContainer}>
-            <h2 className={styles.sectionTitle}>Curadoria Segura</h2>
-            <p className={styles.sectionText}>
-              Todas as novas conexões passam por um painel exclusivo de análise. Administradores garantem a integridade dos dados, revisando cada nó antes que ele faça parte do grafo oficial.
-            </p>
+        {showcaseSections.map((section, index) => (
+          <div
+            key={section.title}
+            className={index % 2 === 0 ? styles.zigZagRow : styles.zigZagRowReverse}
+          >
+            <div className={styles.textContainer}>
+              <span className={styles.featureEyebrow}>{section.eyebrow}</span>
+              <h2 className={styles.sectionTitle}>{section.title}</h2>
+              <p className={styles.sectionText}>{section.text}</p>
+            </div>
+            <figure className={styles.showcaseFrame}>
+              <div className={`${styles.zigZagImage} ${section.imageClass}`} />
+              <figcaption className={styles.imageCaption}>{section.imageLabel}</figcaption>
+            </figure>
           </div>
-          <div className={`${styles.zigZagImage} ${styles.img2}`} />
-        </div>
-
-        {/* Bloco 3: Texto à Esquerda, Imagem à Direita */}
-        <div className={styles.zigZagRow}>
-          <div className={styles.textContainer}>
-            <h2 className={styles.sectionTitle}>Visualização de Dados Avançada</h2>
-            <p className={styles.sectionText}>
-              Navegue por uma interface imersiva. Dê zoom, arraste a tela e descubra instantaneamente como um único ponto pode influenciar dezenas de outros ao longo da história.
-            </p>
-          </div>
-          <div className={`${styles.zigZagImage} ${styles.img3}`} />
-        </div>
+        ))}
       </section>
       
       {/* ─── Footer ─── */}

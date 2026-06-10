@@ -240,23 +240,75 @@
 .contentSection {
   position: relative;
   padding: 100px 24px;
-  max-width: 1100px;
+  max-width: 1180px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 120px;
+  gap: 110px;
   z-index: 15; /* Para o texto e imagem ficarem acima do fio global */
+}
+
+.sectionIntro {
+  max-width: 760px;
+  margin: 0 auto 10px;
+  text-align: center;
+  position: relative;
+  z-index: 3;
+}
+
+.sectionEyebrow,
+.featureEyebrow {
+  color: #8a7856;
+  display: inline-block;
+  font-family: sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.sectionIntroTitle {
+  color: #f0e6d3;
+  font-size: 40px;
+  line-height: 1.08;
+  margin: 0 0 14px;
+}
+
+.sectionIntroText {
+  color: #a89878;
+  font-family: sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
+  margin: 0;
 }
 
 .zigZagRow, .zigZagRowReverse {
   position: relative;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr);
   align-items: center;
-  gap: 60px;
+  gap: 0;
 }
 
-.zigZagRowReverse {
-  flex-direction: row-reverse;
+.zigZagRow .textContainer {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.zigZagRow .showcaseFrame {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.zigZagRowReverse .textContainer {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.zigZagRowReverse .showcaseFrame {
+  grid-column: 1;
+  grid-row: 1;
 }
 
 /* Os Nós (Pontos centrais do Grafo) conectando as seções */
@@ -282,7 +334,7 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: 60px; /* Preenche perfeitamente o gap de 60px entre imagem e texto */
+  width: 72px;
   height: 2px;
   background: rgba(196, 154, 42, 0.4);
   z-index: 1;
@@ -290,17 +342,20 @@
 
 .textContainer {
   flex: 1;
-  background: rgba(15, 13, 11, 0.75); /* Fundo sutil para o texto ficar legível */
-  padding: 24px;
-  border-radius: 12px;
+  background: rgba(17, 16, 9, 0.78);
+  border: 1px solid rgba(58, 48, 32, 0.78);
+  border-radius: 8px;
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.28);
+  padding: 28px;
   position: relative;
   z-index: 3;
 }
 
 .sectionTitle {
   color: #c49a2a;
-  font-size: 36px;
-  margin-bottom: 16px;
+  font-size: 34px;
+  line-height: 1.08;
+  margin: 0 0 16px;
 }
 
 .sectionText {
@@ -308,34 +363,104 @@
   font-family: sans-serif;
   line-height: 1.7;
   font-size: 16px;
+  margin: 0;
 }
 
-.zigZagImage {
-  flex: 1;
-  height: 400px;
-  background-color: #1a1611;
-  border-radius: 16px;
-  border: 1px solid #3a3020;
-  background-size: cover;
-  background-position: center;
+.showcaseFrame {
+  flex: 1.25;
+  min-width: 0;
+  margin: 0;
   position: relative;
   z-index: 3;
 }
 
-/* Imagens Específicas e Sombras Direcionais */
-.img1 {
-  background-image: url('https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=800&auto=format&fit=crop');
-  box-shadow: 20px 20px 60px rgba(0,0,0,0.5);
+.zigZagImage {
+  aspect-ratio: 16 / 9;
+  background-color: #1a1611;
+  border-radius: 8px;
+  border: 1px solid #3a3020;
+  box-shadow: 0 24px 70px rgba(0,0,0,0.48);
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  overflow: hidden;
+  position: relative;
 }
 
-.img2 {
-  background-image: url('https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=800&auto=format&fit=crop');
-  box-shadow: -20px 20px 60px rgba(0,0,0,0.5);
+.zigZagImage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(15, 13, 11, 0) 55%, rgba(15, 13, 11, 0.66)),
+    radial-gradient(circle at 18% 18%, rgba(196, 154, 42, 0.16), transparent 34%);
+  pointer-events: none;
 }
 
-.img3 {
-  background-image: url('https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?q=80&w=800&auto=format&fit=crop');
-  box-shadow: 20px 20px 60px rgba(0,0,0,0.5);
+.zigZagImage::after {
+  content: "Imagem do Familiar Graph";
+  position: absolute;
+  left: 16px;
+  bottom: 14px;
+  color: #8a7856;
+  font-family: sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.imageCaption {
+  color: #8a7856;
+  font-family: sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+  left: 0;
+  margin-top: 0;
+  padding-left: 14px;
+  position: absolute;
+  top: calc(100% + 12px);
+  width: 100%;
+}
+
+.zigZagRow,
+.zigZagRowReverse {
+  margin-bottom: 34px;
+}
+
+.imageCaption::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.4em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #c49a2a;
+}
+
+.globalGraphImage {
+  background-image:
+    linear-gradient(135deg, rgba(15, 13, 11, 0.16), rgba(15, 13, 11, 0.5)),
+    url('/home-showcase/global-graph-overview.png');
+}
+
+.requestImage {
+  background-image:
+    linear-gradient(135deg, rgba(15, 13, 11, 0.12), rgba(15, 13, 11, 0.44)),
+    url('/home-showcase/node-request-modal.png');
+}
+
+.documentImage {
+  background-image:
+    linear-gradient(135deg, rgba(15, 13, 11, 0.1), rgba(15, 13, 11, 0.42)),
+    url('/home-showcase/connection-document-modal.png');
+}
+
+.detailsImage {
+  background-image:
+    linear-gradient(135deg, rgba(15, 13, 11, 0.12), rgba(15, 13, 11, 0.45)),
+    url('/home-showcase/node-details-sidebar.png');
 }
 
 /* ─── Footer ─── */
@@ -353,15 +478,46 @@
 
 /* ─── Responsividade para Celulares ─── */
 @media (max-width: 768px) {
+  .heroTitle {
+    font-size: 44px;
+  }
+
+  .heroDescription {
+    font-size: 16px;
+  }
+
+  .contentSection {
+    padding: 72px 18px;
+    gap: 72px;
+  }
+
+  .sectionIntroTitle {
+    font-size: 30px;
+  }
+
   .zigZagRow, .zigZagRowReverse {
+    display: flex;
     flex-direction: column !important;
-    text-align: center;
     gap: 30px;
   }
+
+  .textContainer {
+    padding: 22px;
+    text-align: left;
+  }
+
+  .sectionTitle {
+    font-size: 28px;
+  }
+
+  .showcaseFrame {
+    width: 100%;
+  }
+
   .zigZagImage {
     width: 100%;
-    height: 250px !important;
   }
+
   /* Esconde o fio, a pulsação e as linhas do grafo em telas pequenas */
   .globalWireContainer,
   .zigZagRow::before, .zigZagRowReverse::before,
