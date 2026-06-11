@@ -32,6 +32,7 @@ type Props = {
   onClose: () => void;
   initialConnection?: { id: string; name: string } | null;
   initialTagSlug?: string;
+  isAuthenticated?: boolean;
 };
 
 const MAX_CONNECTIONS = 10;
@@ -41,6 +42,7 @@ export default function RequestNodeModal({
   onClose,
   initialConnection,
   initialTagSlug = DEFAULT_GLOBAL_TAG_SLUG,
+  isAuthenticated = true,
 }: Props) {
   const [name, setName] = useState('');
   const [tagSlug, setTagSlug] = useState(initialTagSlug);
@@ -343,7 +345,89 @@ export default function RequestNodeModal({
           Crie um no isolado ou conecte a ate {MAX_CONNECTIONS} membros existentes.
         </p>
 
-        {success ? (
+        {!isAuthenticated ? (
+          <div
+            style={{
+              background:
+                'linear-gradient(135deg, rgba(196,154,42,0.14), rgba(17,16,9,0.92))',
+              border: '1px solid rgba(196,154,42,0.32)',
+              borderRadius: 10,
+              padding: '28px 24px',
+              color: '#f0e6d3',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
+            }}
+          >
+            <span
+              style={{
+                color: '#c49a2a',
+                fontFamily: 'sans-serif',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}
+            >
+              Login necessario
+            </span>
+            <h3 style={{ fontSize: 24, lineHeight: 1.05, margin: 0 }}>
+              Entre na sua conta para solicitar um novo no
+            </h3>
+            <p
+              style={{
+                color: '#c8b898',
+                fontFamily: 'sans-serif',
+                fontSize: 14,
+                lineHeight: 1.55,
+                margin: 0,
+                maxWidth: 560,
+              }}
+            >
+              As solicitacoes ficam vinculadas ao usuario para que os administradores possam
+              revisar a origem, acompanhar o contexto e responder com seguranca.
+            </p>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
+              <a
+                href="/login"
+                style={{
+                  alignItems: 'center',
+                  background: '#c49a2a',
+                  border: 'none',
+                  borderRadius: 6,
+                  color: '#111009',
+                  display: 'inline-flex',
+                  fontFamily: 'sans-serif',
+                  fontSize: 14,
+                  fontWeight: 800,
+                  justifyContent: 'center',
+                  minHeight: 42,
+                  padding: '0 18px',
+                  textDecoration: 'none',
+                }}
+              >
+                Fazer login
+              </a>
+              <button
+                type="button"
+                onClick={onClose}
+                style={{
+                  background: 'rgba(15,13,11,0.72)',
+                  border: '1px solid #3a3020',
+                  borderRadius: 6,
+                  color: '#c8b898',
+                  cursor: 'pointer',
+                  fontFamily: 'sans-serif',
+                  fontSize: 14,
+                  minHeight: 42,
+                  padding: '0 16px',
+                }}
+              >
+                Voltar ao grafo
+              </button>
+            </div>
+          </div>
+        ) : success ? (
           <div style={{ textAlign: 'center', padding: '40px 0', color: '#4CAF50' }}>
             <h3 style={{ fontSize: 20, marginBottom: 8 }}>Solicitacao enviada!</h3>
             <p style={{ fontSize: 14 }}>Ela sera analisada por um administrador.</p>

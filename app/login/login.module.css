@@ -1,0 +1,410 @@
+.page {
+  align-items: center;
+  background: #0f0d0b;
+  display: flex;
+  font-family: "DM Serif Display", Georgia, serif;
+  justify-content: center;
+  min-height: 100svh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 24px;
+  position: relative;
+  width: 100vw;
+}
+
+.overlay {
+  background:
+    radial-gradient(circle at 50% 34%, rgba(196, 154, 42, 0.16), transparent 30%),
+    linear-gradient(180deg, rgba(15, 13, 11, 0.58), rgba(15, 13, 11, 0.92));
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 1;
+}
+
+.shell {
+  max-width: 440px;
+  position: relative;
+  width: 100%;
+  z-index: 2;
+}
+
+.authCard {
+  animation: cardIn 0.58s cubic-bezier(0.16, 1, 0.3, 1) both;
+  backdrop-filter: blur(16px);
+  background:
+    linear-gradient(180deg, rgba(20, 18, 12, 0.92), rgba(13, 12, 9, 0.9)),
+    rgba(17, 16, 9, 0.86);
+  border: 1px solid rgba(196, 154, 42, 0.24);
+  border-radius: 12px;
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.68),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  overflow: hidden;
+  padding: 22px;
+  position: relative;
+}
+
+.authCard::before {
+  animation: sheen 4.8s ease-in-out infinite;
+  background: linear-gradient(110deg, transparent, rgba(196, 154, 42, 0.16), transparent);
+  content: "";
+  height: 1px;
+  left: -40%;
+  position: absolute;
+  right: -40%;
+  top: 0;
+  transform: translateX(-45%);
+}
+
+.topBar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.backLink {
+  color: #8a7856;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.backLink:hover {
+  color: #c49a2a;
+}
+
+.brandMark {
+  color: #c49a2a;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.modeTabs {
+  background: #0f0d0b;
+  border: 1px solid #2a2218;
+  border-radius: 999px;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: 1fr 1fr;
+  padding: 4px;
+}
+
+.modeTab {
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  color: #8a7856;
+  cursor: pointer;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  min-height: 38px;
+  position: relative;
+}
+
+.modeTab:hover {
+  color: #f0e6d3;
+}
+
+.modeTabActive {
+  animation: tabPop 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+  background: #c49a2a;
+  color: #111009;
+}
+
+.modeTabActive:hover {
+  color: #111009;
+}
+
+.cardHeader {
+  margin: 25px 0 18px;
+  text-align: center;
+}
+
+.cardHeader h1 {
+  color: #f0e6d3;
+  font-size: 31px;
+  font-weight: 600;
+  line-height: 1;
+  margin: 0;
+}
+
+.bodyShell {
+  overflow: visible;
+  transition:
+    height 0.48s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.24s ease;
+  will-change: height;
+}
+
+.bodyContent {
+  animation: bodyFade 0.28s ease both;
+  padding-bottom: 8px;
+}
+
+.alert {
+  animation: alertIn 0.24s ease both;
+  border-radius: 8px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+}
+
+.alertSuccess {
+  background: rgba(75, 175, 80, 0.12);
+  border: 1px solid rgba(75, 175, 80, 0.28);
+  color: #8bd88f;
+}
+
+.alertError {
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.28);
+  color: #ff9999;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.honeypot {
+  height: 0;
+  left: -9999px;
+  opacity: 0;
+  position: absolute;
+  width: 0;
+}
+
+.field {
+  color: #6d6149;
+  display: flex;
+  flex-direction: column;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  gap: 7px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.revealField {
+  animation: fieldIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.form .revealField:nth-of-type(2) {
+  animation-delay: 0.04s;
+}
+
+.form .revealField:nth-of-type(3) {
+  animation-delay: 0.08s;
+}
+
+.form .revealField:nth-of-type(4) {
+  animation-delay: 0.12s;
+}
+
+.field input {
+  background: #0f0d0b;
+  border: 1px solid #3a3020;
+  border-radius: 7px;
+  color: #f0e6d3;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  height: 45px;
+  letter-spacing: 0;
+  outline: none;
+  padding: 0 12px;
+  text-transform: none;
+  width: 100%;
+}
+
+.field input:hover {
+  border-color: rgba(196, 154, 42, 0.42);
+}
+
+.field input:focus {
+  border-color: rgba(196, 154, 42, 0.76);
+  box-shadow: 0 0 0 3px rgba(196, 154, 42, 0.12);
+}
+
+.passwordInput {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.passwordInput input {
+  border-bottom-right-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.passwordInput button {
+  background: #181410;
+  border: 1px solid #3a3020;
+  border-left: 0;
+  border-radius: 0 7px 7px 0;
+  color: #c49a2a;
+  cursor: pointer;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 0 12px;
+}
+
+.passwordInput button:hover {
+  background: #221b0f;
+}
+
+.passwordPanel {
+  background: rgba(15, 13, 11, 0.72);
+  border: 1px solid #2a2218;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.strengthBar {
+  background: #2a2218;
+  border-radius: 999px;
+  height: 5px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.strengthBar span {
+  background: linear-gradient(90deg, #8a7856, #c49a2a, #8bd88f);
+  display: block;
+  height: 100%;
+  transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.requirements {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.requirements span {
+  color: #6d6149;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  transition: color 0.22s ease, transform 0.22s ease;
+}
+
+.requirements .requirementValid {
+  color: #8bd88f;
+  transform: translateX(2px);
+}
+
+.submitButton {
+  background: #c49a2a;
+  border: 0;
+  border-radius: 7px;
+  box-shadow: 0 12px 28px rgba(196, 154, 42, 0.15);
+  color: #111009;
+  cursor: pointer;
+  font-family: "DM Serif Display", Georgia, serif;
+  font-size: 16px;
+  font-weight: 800;
+  margin-top: 4px;
+  min-height: 46px;
+}
+
+.submitButton:hover:not(:disabled) {
+  background: #d6ad3f;
+  box-shadow: 0 16px 34px rgba(196, 154, 42, 0.2);
+  transform: translateY(-1px);
+}
+
+.submitButton:disabled {
+  background: #3a3020;
+  box-shadow: none;
+  color: #8a7856;
+  cursor: not-allowed;
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fieldIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tabPop {
+  from {
+    transform: scale(0.96);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes alertIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bodyFade {
+  from {
+    opacity: 0.82;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheen {
+  0%,
+  46% {
+    transform: translateX(-45%);
+  }
+  78%,
+  100% {
+    transform: translateX(45%);
+  }
+}
+
+@media (max-width: 520px) {
+  .page {
+    min-height: 100svh;
+    padding: 14px;
+  }
+
+  .authCard {
+    padding: 16px;
+  }
+
+  .requirements {
+    grid-template-columns: 1fr;
+  }
+
+  .cardHeader h1 {
+    font-size: 28px;
+  }
+}

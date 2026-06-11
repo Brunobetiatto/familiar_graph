@@ -650,6 +650,7 @@ export default function GlobalGraphFlow({
           onClose={handleCloseRequestModal}
           initialConnection={requestPreset}
           initialTagSlug={activeTag.slug}
+          isAuthenticated={Boolean(currentUser)}
         />
       </div>
     );
@@ -687,11 +688,37 @@ export default function GlobalGraphFlow({
             Grafo Global
           </h1>
           {layoutReady && (
-            <p className={styles.graphMeta} style={{ color: tagTheme.muted }}>
-              {nodes.length}/{graphLimit} membros · {edges.length} conexões
-              {rootNode ? ` · origem: ${rootNode.name}` : ''}
-              {` · tema: ${activeTag.label}`}
-            </p>
+            <div
+              className={styles.graphMeta}
+              style={
+                {
+                  '--graph-meta-muted': tagTheme.muted,
+                  '--graph-meta-primary': tagTheme.primary,
+                  '--graph-meta-border': tagTheme.border,
+                  '--graph-meta-surface': tagTheme.surface,
+                } as CSSProperties
+              }
+              aria-label="Resumo do recorte atual do grafo"
+            >
+              <span className={styles.graphMetaItem}>
+                <strong>{nodes.length}/{graphLimit}</strong>
+                <span>membros</span>
+              </span>
+              <span className={styles.graphMetaItem}>
+                <strong>{edges.length}</strong>
+                <span>conexoes</span>
+              </span>
+              {rootNode && (
+                <span className={`${styles.graphMetaItem} ${styles.graphMetaOrigin}`}>
+                  <span>origem</span>
+                  <strong title={rootNode.name}>{rootNode.name}</strong>
+                </span>
+              )}
+              <span className={`${styles.graphMetaItem} ${styles.graphMetaTheme}`}>
+                <span>tema</span>
+                <strong>{activeTag.label}</strong>
+              </span>
+            </div>
           )}
         </div>
 
@@ -989,6 +1016,7 @@ export default function GlobalGraphFlow({
         onClose={handleCloseRequestModal}
         initialConnection={requestPreset}
         initialTagSlug={activeTag.slug}
+        isAuthenticated={Boolean(currentUser)}
       />
     </div>
   );
