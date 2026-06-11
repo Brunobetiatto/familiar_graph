@@ -563,21 +563,19 @@ export default function GlobalGraphFlow({
   );
 
   const onEdgeClick: EdgeMouseHandler<Edge> = useCallback(
-    (_event, edge) => {
-      const sourceNode = nodes.find((node) => node.id === edge.source);
-      if (sourceNode) {
-        setNodes((currentNodes) =>
-          currentNodes.map((item) => ({
-            ...item,
-            selected: item.id === sourceNode.id,
-          }))
-        );
-        setSelectedNodeData({ id: sourceNode.id, ...(sourceNode.data as PersonNodeData) });
-      }
+    (event, edge) => {
+      event.stopPropagation();
+      setNodes((currentNodes) =>
+        currentNodes.map((item) => ({
+          ...item,
+          selected: false,
+        }))
+      );
+      setSelectedNodeData(null);
       focusEdge(edge.id);
-      setDocumentConnection(buildConnectionDocument(edge, sourceNode?.id));
+      setDocumentConnection(buildConnectionDocument(edge));
     },
-    [buildConnectionDocument, focusEdge, nodes, setNodes]
+    [buildConnectionDocument, focusEdge, setNodes]
   );
 
   const onPaneClick = useCallback(() => {

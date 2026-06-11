@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import type { PersonNodeData } from './nodes/PersonNode';
 import { moveFocusWithin } from '@/lib/keyboard-navigation';
 import styles from './NodeDetailPanel.module.css';
@@ -64,6 +64,10 @@ export default function NodeDetailPanel({
   onRequestConnection,
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const dragStartYRef = useRef(0);
+  const dragPointerIdRef = useRef<number | null>(null);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     if (!node) return;
@@ -73,37 +77,95 @@ export default function NodeDetailPanel({
     });
   }, [node]);
 
+  useEffect(() => {
+    if (node) return;
+
+    setDragOffset(0);
+    setIsDragging(false);
+    dragPointerIdRef.current = null;
+  }, [node]);
+
   const visible = node !== null;
 
+  function startPanelDrag(event: PointerEvent<HTMLDivElement>) {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+    dragStartYRef.current = event.clientY;
+    dragPointerIdRef.current = event.pointerId;
+    setIsDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function movePanelDrag(event: PointerEvent<HTMLDivElement>) {
+    if (dragPointerIdRef.current !== event.pointerId) return;
+
+    const offset = Math.max(0, event.clientY - dragStartYRef.current);
+    setDragOffset(offset);
+  }
+
+  function finishPanelDrag(event: PointerEvent<HTMLDivElement>) {
+    if (dragPointerIdRef.current !== event.pointerId) return;
+
+    const shouldClose = dragOffset > 92;
+    dragPointerIdRef.current = null;
+    setIsDragging(false);
+    event.currentTarget.releasePointerCapture(event.pointerId);
+
+    if (shouldClose) {
+      onClose();
+      return;
+    }
+
+    setDragOffset(0);
+  }
+
   return (
-    <div
-      ref={panelRef}
-      role="dialog"
-      aria-label="Detalhes do membro"
-      className={`${styles.panel} ${visible ? styles.panelVisible : ''}`}
-      tabIndex={node ? 0 : -1}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') {
-          onClose();
-          return;
-        }
+    <>
+      <div
+        className={`${styles.backdrop} ${visible ? styles.backdropVisible : ''}`}
+        aria-hidden="true"
+        onMouseDown={onClose}
+      />
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-label="Detalhes do membro"
+        className={`${styles.panel} ${visible ? styles.panelVisible : ''}`}
+        data-dragging={isDragging ? 'true' : undefined}
+        tabIndex={node ? 0 : -1}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            onClose();
+            return;
+          }
 
-        if (!panelRef.current) return;
+          if (!panelRef.current) return;
 
-        if (event.key === 'ArrowDown') {
-          event.preventDefault();
-          moveFocusWithin(panelRef.current, 1);
-          return;
-        }
+          if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            moveFocusWithin(panelRef.current, 1);
+            return;
+          }
 
-        if (event.key === 'ArrowUp') {
-          event.preventDefault();
-          moveFocusWithin(panelRef.current, -1);
+          if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            moveFocusWithin(panelRef.current, -1);
+          }
+        }}
+        style={
+          {
+            '--panel-drag-y': `${dragOffset}px`,
+          } as CSSProperties
         }
-      }}
-    >
+      >
       {/* ── Cabeçalho ── */}
-      <div className={styles.header}>
+      <div
+        className={styles.header}
+        onPointerDown={startPanelDrag}
+        onPointerMove={movePanelDrag}
+        onPointerUp={finishPanelDrag}
+        onPointerCancel={finishPanelDrag}
+      >
         <span className={styles.mobileHandle} aria-hidden="true" />
         <span
           style={{
@@ -118,6 +180,7 @@ export default function NodeDetailPanel({
         </span>
         <button
           onClick={onClose}
+          onPointerDown={(event) => event.stopPropagation()}
           aria-label="Fechar painel"
           style={{
             background: 'none',
@@ -369,7 +432,8 @@ export default function NodeDetailPanel({
           </div>
         </>
       )}
-    </div>
+      </div>
+    </>
   );
 }
 

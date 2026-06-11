@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import RichTextViewer from '@/app/components/RichTextViewer';
+import styles from './ConnectionDocumentModal.module.css';
 
 export type ConnectionDocument = {
   edgeId: string;
@@ -21,11 +22,23 @@ type Props = {
 
 export default function ConnectionDocumentModal({ connection, onClose }: Props) {
   const modalRef = useRef<HTMLDivElement>(null);
+  const dragStartYRef = useRef(0);
+  const dragPointerIdRef = useRef<number | null>(null);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     if (!connection) return;
 
     modalRef.current?.focus();
+  }, [connection]);
+
+  useEffect(() => {
+    if (connection) return;
+
+    setDragOffset(0);
+    setIsDragging(false);
+    dragPointerIdRef.current = null;
   }, [connection]);
 
   if (!connection) return null;
@@ -36,144 +49,113 @@ export default function ConnectionDocumentModal({ connection, onClose }: Props) 
     connection.documentImageUrl ||
     connection.description;
 
+  function startModalDrag(event: PointerEvent<HTMLDivElement>) {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+    dragStartYRef.current = event.clientY;
+    dragPointerIdRef.current = event.pointerId;
+    setIsDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function moveModalDrag(event: PointerEvent<HTMLDivElement>) {
+    if (dragPointerIdRef.current !== event.pointerId) return;
+
+    const offset = Math.max(0, event.clientY - dragStartYRef.current);
+    setDragOffset(offset);
+  }
+
+  function finishModalDrag(event: PointerEvent<HTMLDivElement>) {
+    if (dragPointerIdRef.current !== event.pointerId) return;
+
+    const shouldClose = dragOffset > 92;
+    dragPointerIdRef.current = null;
+    setIsDragging(false);
+    event.currentTarget.releasePointerCapture(event.pointerId);
+
+    if (shouldClose) {
+      onClose();
+      return;
+    }
+
+    setDragOffset(0);
+  }
+
   return (
     <div
-      className="connection-document-backdrop"
+      className={styles.backdrop}
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
-      style={{
-        position: 'absolute',
-        inset: 0,
-        zIndex: 35,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 24,
-        background: 'rgba(7, 6, 5, 0.72)',
-        backdropFilter: 'blur(8px)',
-      }}
     >
       <div
-        className="connection-document-surface"
+        className={styles.surface}
         ref={modalRef}
         role="dialog"
         aria-label="Documento da ligação"
         tabIndex={0}
+        data-dragging={isDragging ? 'true' : undefined}
         onKeyDown={(event) => {
           if (event.key === 'Escape') onClose();
         }}
-        style={{
-          width: 'min(760px, 100%)',
-          maxHeight: 'min(760px, calc(100vh - 48px))',
-          overflowY: 'auto',
-          overflowX: 'hidden',
-          borderRadius: 10,
-          border: '1px solid #3a3020',
-          background: '#111009',
-          boxShadow: '0 24px 80px rgba(0,0,0,0.65)',
-          fontFamily: '"DM Serif Display", Georgia, serif',
-          outline: 'none',
-        }}
+        style={
+          {
+            '--modal-drag-y': `${dragOffset}px`,
+          } as CSSProperties
+        }
       >
         <div
-          style={{
-            position: 'sticky',
-            top: 0,
-            zIndex: 1,
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-            gap: 16,
-            padding: '18px 22px',
-            borderBottom: '1px solid #2a2218',
-            background: 'rgba(17, 16, 9, 0.96)',
-          }}
+          className={styles.header}
+          onPointerDown={startModalDrag}
+          onPointerMove={moveModalDrag}
+          onPointerUp={finishModalDrag}
+          onPointerCancel={finishModalDrag}
         >
-          <div style={{ minWidth: 0 }}>
-            <p
-              style={{
-                margin: '0 0 6px',
-                color: '#8a7856',
-                fontFamily: 'sans-serif',
-                fontSize: 11,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-              }}
-            >
-              {connection.otherNodeName} · {connection.relation}
-            </p>
-            <h2
-              style={{
-                margin: 0,
-                color: '#f0e6d3',
-                fontSize: 24,
-                lineHeight: 1.2,
-                overflowWrap: 'anywhere',
-              }}
-            >
+          <div className={styles.headerContent}>
+            <div className={styles.mobileHandle} aria-hidden="true" />
+            <div className={styles.metaRow}>
+              <span className={styles.metaPill}>{connection.relation}</span>
+              <span className={styles.metaPill}>{connection.directionLabel}</span>
+            </div>
+            <h2 className={styles.title}>
               {connection.documentTitle || 'Documento da ligacao'}
             </h2>
+            <p className={styles.subtitle}>{connection.otherNodeName}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
+            onPointerDown={(event) => event.stopPropagation()}
             aria-label="Fechar documento"
-            style={{
-              flexShrink: 0,
-              background: 'none',
-              border: 'none',
-              color: '#8a7856',
-              cursor: 'pointer',
-              fontSize: 20,
-              lineHeight: 1,
-              padding: 4,
-            }}
+            className={styles.closeButton}
           >
             x
           </button>
         </div>
 
-        <div style={{ padding: 22 }}>
+        <div className={styles.body}>
           {connection.documentImageUrl && (
             <img
               src={connection.documentImageUrl}
               alt=""
-              style={{
-                width: '100%',
-                maxHeight: 300,
-                objectFit: 'cover',
-                borderRadius: 8,
-                border: '1px solid #2a2218',
-                marginBottom: 18,
-                display: 'block',
-              }}
+              className={styles.image}
             />
           )}
 
           {connection.description && (
-            <p
-              style={{
-                margin: '0 0 18px',
-                padding: '12px 14px',
-                borderLeft: '3px solid #b28a35',
-                background: '#181410',
-                color: '#c8b898',
-                fontFamily: 'sans-serif',
-                fontSize: 13,
-                lineHeight: 1.6,
-              }}
-            >
+            <p className={styles.description}>
               {connection.description}
             </p>
           )}
 
           {connection.documentContent ? (
-            <RichTextViewer value={connection.documentContent} />
+            <div className={styles.richText}>
+              <RichTextViewer value={connection.documentContent} />
+            </div>
           ) : (
             !hasDocument && (
-              <p style={{ margin: 0, color: '#5a4e38', fontFamily: 'sans-serif', fontSize: 14 }}>
+              <p className={styles.emptyMessage}>
                 Nenhum documento registrado para esta ligacao.
               </p>
             )
