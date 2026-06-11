@@ -36,9 +36,10 @@ declare global {
 
 type Props = {
   opacity?: number;
+  disableOnMobile?: boolean;
 };
 
-export default function VantaNetBackground({ opacity = 1 }: Props) {
+export default function VantaNetBackground({ opacity = 1, disableOnMobile = false }: Props) {
   const vantaRef = useRef<HTMLDivElement>(null);
   const vantaEffectRef = useRef<VantaEffect | null>(null);
   const [threeReady, setThreeReady] = useState(false);
@@ -53,7 +54,8 @@ export default function VantaNetBackground({ opacity = 1 }: Props) {
     if (!threeReady || !vantaReady || !vantaRef.current || vantaEffectRef.current) return;
 
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReducedMotion) return;
+    const isMobile = window.matchMedia('(max-width: 520px)').matches;
+    if (prefersReducedMotion || (disableOnMobile && isMobile)) return;
 
     vantaEffectRef.current = window.VANTA?.NET?.({
       el: vantaRef.current,
@@ -77,7 +79,7 @@ export default function VantaNetBackground({ opacity = 1 }: Props) {
       vantaEffectRef.current?.destroy();
       vantaEffectRef.current = null;
     };
-  }, [threeReady, vantaReady]);
+  }, [disableOnMobile, threeReady, vantaReady]);
 
   return (
     <>

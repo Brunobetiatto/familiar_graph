@@ -78,7 +78,6 @@
 
 .nodeContainer:hover .tagRail,
 .nodeContainerSelected .tagRail {
-  width: 6px;
   opacity: 1;
 }
 

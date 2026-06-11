@@ -1,7 +1,7 @@
 .backdrop {
   align-items: center;
-  backdrop-filter: blur(8px);
-  background: rgba(7, 6, 5, 0.72);
+  animation: documentBackdropIn 0.44s ease both;
+  background: rgba(7, 6, 5, 0.58);
   display: flex;
   inset: 0;
   justify-content: center;
@@ -11,6 +11,7 @@
 }
 
 .surface {
+  animation: documentSurfaceIn 0.64s cubic-bezier(0.22, 1, 0.36, 1) both;
   background: #111009;
   border: 1px solid #3a3020;
   border-radius: 10px;
@@ -21,7 +22,8 @@
   overflow-x: hidden;
   overflow-y: auto;
   transform: translateY(0);
-  transition: transform 0.52s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.72s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, opacity;
   width: min(760px, 100%);
 }
 
@@ -193,10 +195,12 @@
 @media (max-width: 820px) {
   .backdrop {
     align-items: flex-end;
+    animation-duration: 0.38s;
     padding: 0;
   }
 
   .surface {
+    animation-name: documentSheetIn;
     border-bottom: 0;
     border-left: 0;
     border-radius: 18px 18px 0 0;
@@ -314,5 +318,36 @@
   .richText :global(.ql-editor h3) {
     line-height: 1.18;
     margin-top: 0.75em;
+  }
+}
+
+@keyframes documentBackdropIn {
+  from {
+    background: rgba(7, 6, 5, 0);
+  }
+  to {
+    background: rgba(7, 6, 5, 0.58);
+  }
+}
+
+@keyframes documentSurfaceIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes documentSheetIn {
+  from {
+    opacity: 0.98;
+    transform: translateY(34px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(var(--modal-drag-y, 0px));
   }
 }

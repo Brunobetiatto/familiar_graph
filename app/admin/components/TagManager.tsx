@@ -13,6 +13,7 @@ import {
   normalizeTagRelations,
   type GlobalTagRelation,
 } from '@/lib/global-relations';
+import styles from '../admin.module.css';
 
 type Props = {
   onTagsChange?: (tags: GlobalTag[]) => void;
@@ -183,8 +184,8 @@ export default function TagManager({ onTagsChange }: Props) {
   }
 
   return (
-    <section style={{ marginBottom: 28, background: '#111009', border: '1px solid #3a3020', borderRadius: 12, padding: 18 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 16 }}>
+    <section className={styles.tagManager} style={{ marginBottom: 28, background: '#111009', border: '1px solid #3a3020', borderRadius: 12, padding: 18 }}>
+      <div className={styles.tagManagerHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 16 }}>
         <div>
           <h2 style={{ color: '#f0e6d3', margin: 0, fontSize: 20 }}>Tags do Grafo Global</h2>
           <p style={{ color: '#8a7856', margin: '6px 0 0', fontFamily: 'sans-serif', fontSize: 13 }}>
@@ -197,13 +198,13 @@ export default function TagManager({ onTagsChange }: Props) {
             setMode('create');
             setForm(createBlankForm());
           }}
-          style={{ padding: '9px 12px', background: '#c49a2a', color: '#0f0d0b', border: 0, borderRadius: 7, cursor: 'pointer', fontWeight: 700 }}
+          className={styles.primaryButton}
         >
           Nova tag
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 0.8fr) minmax(0, 1.4fr)', gap: 16 }}>
+      <div className={styles.tagManagerGrid} style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 0.8fr) minmax(0, 1.4fr)', gap: 16 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {tags.map((tag) => (
             <button
@@ -236,7 +237,7 @@ export default function TagManager({ onTagsChange }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} style={{ background: '#181410', border: '1px solid #2a2218', borderRadius: 8, padding: 14 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className={styles.twoColumnForm} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Field label="Nome">
               <input
                 value={form.label}
@@ -269,26 +270,6 @@ export default function TagManager({ onTagsChange }: Props) {
             />
           </Field>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))', gap: 10, marginTop: 12 }}>
-            {COLOR_FIELDS.map((field) => (
-              <Field key={field.key} label={field.label}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <input
-                    type="color"
-                    value={form.theme[field.key]}
-                    onChange={(event) => updateTheme(field.key, event.target.value)}
-                    style={{ width: 38, height: 34, padding: 0, border: '1px solid #3a3020', background: 'transparent', borderRadius: 6 }}
-                  />
-                  <input
-                    value={form.theme[field.key]}
-                    onChange={(event) => updateTheme(field.key, event.target.value)}
-                    style={{ ...inputStyle, padding: '8px 9px', fontSize: 12 }}
-                  />
-                </div>
-              </Field>
-            ))}
-          </div>
-
           <div style={{ marginTop: 14, padding: 12, borderRadius: 8, border: `1px solid ${form.theme.border}`, background: form.theme.surface }}>
             <span style={{ color: form.theme.muted, fontSize: 11, textTransform: 'uppercase', fontFamily: 'sans-serif' }}>Preview</span>
             <h3 style={{ color: form.theme.secondary, margin: '4px 0 6px', fontSize: 18 }}>{form.label || 'Nova tag'}</h3>
@@ -296,16 +277,43 @@ export default function TagManager({ onTagsChange }: Props) {
             <div style={{ marginTop: 10, height: 3, borderRadius: 99, background: form.theme.primary }} />
           </div>
 
-          <div style={{ marginTop: 14, padding: 12, borderRadius: 8, border: '1px solid #2a2218', background: '#111009' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-              <div>
-                <span style={{ color: '#5a4e38', fontSize: 10, textTransform: 'uppercase', fontFamily: 'sans-serif' }}>
-                  Relacoes permitidas
-                </span>
-                <p style={{ color: '#8a7856', margin: '4px 0 0', fontSize: 12, fontFamily: 'sans-serif' }}>
-                  O usuario so podera escolher estas relacoes ao criar nos deste tema.
-                </p>
-              </div>
+          <details className={styles.configPanel}>
+            <summary>
+              <span>Cores do tema</span>
+              <small>{COLOR_FIELDS.length} opcoes</small>
+            </summary>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))', gap: 10, marginTop: 12 }}>
+              {COLOR_FIELDS.map((field) => (
+                <Field key={field.key} label={field.label}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      type="color"
+                      value={form.theme[field.key]}
+                      onChange={(event) => updateTheme(field.key, event.target.value)}
+                      style={{ width: 38, height: 34, padding: 0, border: '1px solid #3a3020', background: 'transparent', borderRadius: 6 }}
+                    />
+                    <input
+                      value={form.theme[field.key]}
+                      onChange={(event) => updateTheme(field.key, event.target.value)}
+                      style={{ ...inputStyle, padding: '8px 9px', fontSize: 12 }}
+                    />
+                  </div>
+                </Field>
+              ))}
+            </div>
+          </details>
+
+          <details className={styles.configPanel}>
+            <summary>
+              <span>Relacoes permitidas</span>
+              <small>{form.relations.length} relacoes</small>
+            </summary>
+
+            <div className={styles.relationHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 10, marginTop: 12 }}>
+              <p style={{ color: '#8a7856', margin: 0, fontSize: 12, fontFamily: 'sans-serif' }}>
+                O usuario so podera escolher estas relacoes ao criar nos deste tema.
+              </p>
               <button
                 type="button"
                 onClick={addRelation}
@@ -314,10 +322,9 @@ export default function TagManager({ onTagsChange }: Props) {
                 Adicionar
               </button>
             </div>
-
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {form.relations.map((relation, index) => (
-                <div key={`${index}-${relation.key}`} style={{ display: 'grid', gridTemplateColumns: '0.85fr 1fr auto', gap: 8, alignItems: 'center' }}>
+                <div key={`${index}-${relation.key}`} className={styles.relationRow} style={{ display: 'grid', gridTemplateColumns: '0.85fr 1fr auto', gap: 8, alignItems: 'center' }}>
                   <input
                     value={relation.key}
                     onChange={(event) => updateRelation(index, 'key', event.target.value)}
@@ -340,7 +347,7 @@ export default function TagManager({ onTagsChange }: Props) {
                 </div>
               ))}
             </div>
-          </div>
+          </details>
 
           {error && <p style={{ color: '#ff6b6b', fontSize: 12, fontFamily: 'sans-serif' }}>{error}</p>}
 

@@ -30,7 +30,7 @@ export default function ConnectionDocumentModal({ connection, onClose }: Props) 
   useEffect(() => {
     if (!connection) return;
 
-    modalRef.current?.focus();
+    modalRef.current?.focus({ preventScroll: true });
   }, [connection]);
 
   useEffect(() => {

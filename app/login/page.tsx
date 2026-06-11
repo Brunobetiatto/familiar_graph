@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { handleKeyboardFormNavigation } from '@/lib/keyboard-navigation';
 import VantaNetBackground from '@/app/components/VantaNetBackground';
@@ -34,30 +34,12 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-  const [bodyHeight, setBodyHeight] = useState<number | null>(null);
-  const bodyRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
 
   const passwordRequirements = useMemo(() => getPasswordRequirements(password), [password]);
   const passwordScore = passwordRequirements.filter((item) => item.valid).length;
   const canSubmitRegister =
     passwordScore === passwordRequirements.length && password === confirmPassword;
-
-  useLayoutEffect(() => {
-    const element = bodyRef.current;
-    if (!element) return;
-
-    const updateHeight = () => {
-      const measuredHeight = Math.max(element.scrollHeight, element.getBoundingClientRect().height);
-      setBodyHeight(Math.ceil(measuredHeight) + 32);
-    };
-    updateHeight();
-
-    const observer = new ResizeObserver(updateHeight);
-    observer.observe(element);
-
-    return () => observer.disconnect();
-  }, [isLoginMode, error, successMsg, passwordScore, confirmPassword, showPassword]);
 
   function switchMode(nextLoginMode: boolean) {
     setIsLoginMode(nextLoginMode);
@@ -121,7 +103,7 @@ export default function LoginPage() {
 
   return (
     <main className={styles.page}>
-      <VantaNetBackground />
+      <VantaNetBackground disableOnMobile />
       <div className={styles.overlay} aria-hidden="true" />
 
       <section className={styles.shell} aria-labelledby="auth-title">
@@ -154,8 +136,8 @@ export default function LoginPage() {
             </button>
           </div>
 
-          <div className={styles.bodyShell} style={{ height: bodyHeight ?? undefined }}>
-            <div ref={bodyRef} className={styles.bodyContent}>
+          <div className={styles.bodyShell}>
+            <div key={isLoginMode ? 'login' : 'register'} className={styles.bodyContent}>
               <div className={styles.cardHeader}>
                 <h1 id="auth-title">{isLoginMode ? 'Acessar conta' : 'Criar conta'}</h1>
               </div>

@@ -226,6 +226,7 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
 
   return (
     <div
+      className="node-request-modal-backdrop"
       style={{
         position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
         backgroundColor: 'rgba(0, 0, 0, 0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -233,6 +234,7 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
       }}
     >
       <div
+        className="node-request-modal-surface"
         style={{
           background: '#111009', border: '1px solid #3a3020', borderRadius: 12, padding: '24px 32px',
           width: '100%', maxWidth: 700, height: 'calc(100vh - 40px)', maxHeight: 760, overflowY: 'auto', overflowX: 'hidden', position: 'relative',
@@ -260,7 +262,7 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
           {/* Seção 1: Dados do Nó */}
           <div style={{ background: '#181410', padding: 16, borderRadius: 8, border: '1px solid #2a2218' }}>
             <h3 style={{ margin: '0 0 16px 0', fontSize: 14, color: '#f0e6d3', textTransform: 'uppercase', letterSpacing: '0.05em' }}>1. Dados do Novo Nó</h3>
-            <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
+            <div className="node-request-modal-grid" style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
               <div style={{ flex: 2 }}>
                 <Label>Nome Completo *</Label>
                 <Input value={name} onChange={(e: any) => setName(e.target.value)} required />
@@ -284,7 +286,7 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
                 </Select>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 16 }}>
+            <div className="node-request-modal-grid" style={{ display: 'flex', gap: 16 }}>
               <div style={{ flex: 1 }}>
                 <Label>Nascimento</Label>
                 <Input type="date" value={birthDate} onChange={(e: any) => setBirthDate(e.target.value)} />
@@ -294,7 +296,7 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
                 <Input value={bio} onChange={(e: any) => setBio(e.target.value)} placeholder="Breve resumo..." />
               </div>
             </div>
-            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div className="node-request-modal-photo-row" style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 14 }}>
               <div
                 style={{
                   width: 54,
@@ -402,7 +404,7 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
                     </button>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div className="node-request-modal-grid" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     {/* Direção da Linha */}
                     <Select style={{ flex: 1 }} value={conn.newNodeIsFrom ? 'FROM' : 'TO'} onChange={(e: any) => updateConnection(conn.targetNodeId, 'newNodeIsFrom', e.target.value === 'FROM')}>
                       <option value="FROM">Seta sai do Novo Nó</option>

@@ -63,6 +63,38 @@ html {
   display: none;
 }
 
+@media (max-width: 720px) {
+  .node-request-modal-backdrop {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  .node-request-modal-surface {
+    border-bottom: 0 !important;
+    border-radius: 18px 18px 0 0 !important;
+    height: min(88dvh, 760px) !important;
+    max-height: calc(100dvh - 24px) !important;
+    max-width: none !important;
+    padding: 22px 16px max(18px, env(safe-area-inset-bottom)) !important;
+    width: 100% !important;
+  }
+
+  .node-request-modal-grid {
+    align-items: stretch !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  .node-request-modal-grid > * {
+    flex: 1 1 auto !important;
+    width: 100% !important;
+  }
+
+  .node-request-modal-photo-row {
+    align-items: flex-start !important;
+  }
+}
+
 .react-flow__controls {
   background: #1a1410;
   border: 1px solid #3a3020;

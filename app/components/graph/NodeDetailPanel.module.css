@@ -71,7 +71,6 @@
 
 @media (max-width: 820px) {
   .backdrop {
-    backdrop-filter: blur(0);
     background: rgba(7, 6, 5, 0);
     display: block;
     inset: 0;
@@ -80,14 +79,12 @@
     position: absolute;
     transition:
       opacity 0.34s ease,
-      backdrop-filter 0.34s ease,
       background 0.34s ease;
     z-index: 19;
   }
 
   .backdropVisible {
-    backdrop-filter: blur(8px);
-    background: rgba(7, 6, 5, 0.58);
+    background: rgba(7, 6, 5, 0.48);
     opacity: 1;
     pointer-events: auto;
   }
@@ -104,7 +101,8 @@
     right: 0;
     top: auto;
     transform: translateY(calc(100% + 20px));
-    transition: transform 0.52s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.72s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
     width: 100%;
   }
 

@@ -6,6 +6,7 @@ import DirectNodeModal from './components/DirectNodeModal'; // 1. IMPORT AQUI NO
 import TagManager from './components/TagManager';
 import { findRelationLabel } from '@/lib/global-relations';
 import { OFFICIAL_GLOBAL_TAGS, getGlobalTag, type GlobalTag } from '@/lib/global-tags';
+import styles from './admin.module.css';
 
 type RequestConnection = {
   id: string;
@@ -96,7 +97,7 @@ export default function AdminDashboard() {
   }
 
   if (isLoading) {
-    return <div style={{ color: '#c49a2a', padding: 40, background: '#0f0d0b', height: '100vh' }}>Carregando painel...</div>;
+    return <div className={styles.loading}>Carregando painel...</div>;
   }
 
   const formatDate = (value: string | null) => {
@@ -115,28 +116,28 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0f0d0b', padding: '40px 20px', fontFamily: '"DM Serif Display", Georgia, serif' }}>
-      <div style={{ maxWidth: 1040, margin: '0 auto' }}>
+    <div className={styles.page}>
+      <div className={styles.shell}>
         
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+        <div className={styles.header}>
           <div>
-            <h1 style={{ color: '#c49a2a', margin: 0, fontSize: 32 }}>Painel do Administrador</h1>
-            <p style={{ color: '#8a7856', margin: '8px 0 0', fontFamily: 'sans-serif' }}>
+            <h1 className={styles.title}>Painel do Administrador</h1>
+            <p className={styles.subtitle}>
               Gerencie as solicitações pendentes para o Grafo Global.
             </p>
           </div>
           
           {/* Botões do Cabeçalho corrigidos (sem duplicação) */}
-          <div style={{ display: 'flex', gap: 12 }}>
+          <div className={styles.headerActions}>
             <button 
                 onClick={() => setIsDirectModalOpen(true)}
-                style={{ padding: '10px 16px', background: '#c49a2a', color: '#0f0d0b', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
+                className={styles.primaryButton}
             >
                 + Criar Nó Direto
             </button>
             <button 
                 onClick={() => router.push('/global-graph')}
-                style={{ padding: '10px 16px', background: '#181410', color: '#c49a2a', border: '1px solid #3a3020', borderRadius: 8, cursor: 'pointer' }}
+                className={styles.secondaryButton}
             >
                 Voltar ao Grafo
             </button>
@@ -149,11 +150,11 @@ export default function AdminDashboard() {
         {error && <p style={{ color: '#ff6b6b' }}>{error}</p>}
 
         {requests.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 0', border: '1px dashed #3a3020', borderRadius: 12 }}>
+          <div className={styles.emptyState}>
             <p style={{ color: '#5a4e38', fontSize: 18 }}>Nenhuma solicitação pendente.</p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div className={styles.requestList}>
             {requests.map((req) => {
               const tag =
                 globalTags.find((item) => item.slug === req.nodeTagSlug) ??
@@ -171,8 +172,8 @@ export default function AdminDashboard() {
               const isExpanded = expandedRequestId === req.id;
               
               return (
-                <div key={req.id} style={{ background: '#111009', border: '1px solid #3a3020', borderRadius: 12, padding: 24 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div key={req.id} className={styles.requestCard}>
+                  <div className={styles.requestTop}>
                     
                     <div style={{ minWidth: 0, display: 'flex', gap: 14, alignItems: 'flex-start' }}>
                       {req.nodePhotoUrl && (
@@ -215,7 +216,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    <div style={{ textAlign: 'right', fontFamily: 'sans-serif', fontSize: 12, minWidth: 0 }}>
+                    <div className={styles.requester}>
                       <span style={{ color: '#5a4e38', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Solicitado por</span>
                       <p style={{ color: '#a89878', margin: '4px 0' }}>{req.requester.name || req.requester.email}</p>
                     </div>
@@ -228,32 +229,23 @@ export default function AdminDashboard() {
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', gap: 12, marginTop: 24, justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className={styles.cardActions}>
                     <button
                       onClick={() => setExpandedRequestId(isExpanded ? null : req.id)}
-                      style={{
-                        padding: '8px 12px',
-                        background: '#181410',
-                        color: '#c49a2a',
-                        border: '1px solid #3a3020',
-                        borderRadius: 6,
-                        cursor: 'pointer',
-                        fontWeight: 600,
-                        fontSize: 12,
-                      }}
+                      className={styles.secondaryButton}
                     >
                       {isExpanded ? 'Ocultar detalhes' : 'Ver detalhes'}
                     </button>
 
                     <button 
                       onClick={() => handleAction(req.id, 'reject')}
-                      style={{ padding: '8px 16px', background: 'transparent', color: '#ff6b6b', border: '1px solid #ff6b6b40', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold' }}
+                      className={styles.dangerButton}
                     >
                       Recusar
                     </button>
                     <button 
                       onClick={() => handleAction(req.id, 'approve')}
-                      style={{ padding: '8px 16px', background: '#c49a2a', color: '#0f0d0b', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold' }}
+                      className={styles.primaryButton}
                     >
                       Aprovar
                     </button>

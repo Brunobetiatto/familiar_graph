@@ -1,0 +1,380 @@
+.page {
+  background: #0f0d0b;
+  font-family: "DM Serif Display", Georgia, serif;
+  min-height: 100vh;
+  padding: 40px 20px;
+}
+
+.shell {
+  animation: adminShellIn 0.46s cubic-bezier(0.16, 1, 0.3, 1) both;
+  margin: 0 auto;
+  max-width: 1040px;
+}
+
+.loading {
+  background: #0f0d0b;
+  color: #c49a2a;
+  height: 100vh;
+  padding: 40px;
+}
+
+.header {
+  align-items: center;
+  animation: adminRiseIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 32px;
+  gap: 18px;
+}
+
+.title {
+  color: #c49a2a;
+  font-size: 32px;
+  margin: 0;
+}
+
+.subtitle {
+  color: #8a7856;
+  font-family: Arial, Helvetica, sans-serif;
+  margin: 8px 0 0;
+}
+
+.headerActions,
+.cardActions {
+  display: flex;
+  gap: 12px;
+}
+
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 38px;
+  padding: 8px 16px;
+  transition:
+    background 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.26s ease,
+    color 0.22s ease,
+    opacity 0.22s ease,
+    transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.primaryButton:hover,
+.secondaryButton:hover,
+.dangerButton:hover {
+  transform: translateY(-1px);
+}
+
+.primaryButton {
+  background: #c49a2a;
+  border: 0;
+  color: #0f0d0b;
+}
+
+.primaryButton:hover {
+  background: #d8ad36;
+  box-shadow: 0 10px 24px rgba(196, 154, 42, 0.16);
+}
+
+.secondaryButton {
+  background: #181410;
+  border: 1px solid #3a3020;
+  color: #c49a2a;
+}
+
+.secondaryButton:hover {
+  background: #211a12;
+  border-color: #5a4a2f;
+}
+
+.dangerButton {
+  background: transparent;
+  border: 1px solid #ff6b6b40;
+  color: #ff6b6b;
+}
+
+.dangerButton:hover {
+  background: rgba(255, 107, 107, 0.08);
+  border-color: #ff6b6b80;
+}
+
+.emptyState {
+  animation: adminRiseIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+  border: 1px dashed #3a3020;
+  border-radius: 12px;
+  padding: 60px 0;
+  text-align: center;
+}
+
+.requestList {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.requestCard {
+  animation: adminCardIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+  background: #111009;
+  border: 1px solid #3a3020;
+  border-radius: 12px;
+  padding: 24px;
+  transition:
+    border-color 0.26s ease,
+    box-shadow 0.3s ease,
+    transform 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.requestCard:hover {
+  border-color: #4a3a24;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.requestTop {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.requester {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  min-width: 0;
+  text-align: right;
+}
+
+.cardActions {
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 24px;
+}
+
+.tagManager {
+  animation: adminCardIn 0.48s 0.04s cubic-bezier(0.16, 1, 0.3, 1) both;
+  overflow: hidden;
+}
+
+.tagManagerGrid > div:first-child button {
+  transition:
+    background 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.26s ease,
+    transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tagManagerGrid > div:first-child button:hover {
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24);
+  transform: translateX(2px);
+}
+
+.configPanel {
+  background: #111009;
+  border: 1px solid #2a2218;
+  border-radius: 8px;
+  margin-top: 14px;
+  padding: 0;
+  transition:
+    background 0.24s ease,
+    border-color 0.24s ease,
+    box-shadow 0.28s ease;
+}
+
+.configPanel:hover {
+  border-color: #3a3020;
+}
+
+.configPanel summary {
+  align-items: center;
+  color: #f0e6d3;
+  cursor: pointer;
+  display: flex;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  justify-content: space-between;
+  list-style: none;
+  min-height: 44px;
+  padding: 0 12px;
+  transition:
+    background 0.22s ease,
+    color 0.22s ease;
+}
+
+.configPanel summary:hover {
+  background: rgba(196, 154, 42, 0.04);
+}
+
+.configPanel summary::-webkit-details-marker {
+  display: none;
+}
+
+.configPanel summary::after {
+  color: #c49a2a;
+  content: "+";
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.configPanel[open] summary {
+  border-bottom: 1px solid #2a2218;
+}
+
+.configPanel[open] summary::after {
+  content: "-";
+  transform: rotate(180deg);
+}
+
+.configPanel summary small {
+  color: #8a7856;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: auto;
+  margin-right: 12px;
+}
+
+.configPanel > div {
+  animation: adminDetailsIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+  padding: 12px;
+}
+
+.relationRow {
+  animation: adminDetailsIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes adminShellIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes adminRiseIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes adminCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes adminDetailsIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 720px) {
+  .page {
+    padding: 18px 12px 28px;
+  }
+
+  .header,
+  .requestTop,
+  .cardActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .title {
+    font-size: 26px;
+    line-height: 1.05;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .headerActions,
+  .cardActions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .primaryButton,
+  .secondaryButton,
+  .dangerButton {
+    min-height: 42px;
+    width: 100%;
+  }
+
+  .requestCard {
+    border-radius: 10px;
+    padding: 16px;
+  }
+
+  .requestCard:hover {
+    transform: none;
+  }
+
+  .requester {
+    background: #181410;
+    border: 1px solid #2a2218;
+    border-radius: 8px;
+    padding: 10px;
+    text-align: left;
+  }
+
+  .tagManager {
+    padding: 14px !important;
+  }
+
+  .tagManagerHeader,
+  .relationHeader {
+    align-items: stretch !important;
+    flex-direction: column;
+  }
+
+  .tagManagerGrid,
+  .twoColumnForm,
+  .relationRow {
+    grid-template-columns: 1fr !important;
+  }
+
+  .tagManagerGrid > div:first-child {
+    display: grid !important;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(170px, 72%);
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .tagManagerGrid > div:first-child button:hover {
+    transform: none;
+  }
+
+  .relationHeader button,
+  .relationRow button {
+    width: 100%;
+  }
+
+  .configPanel summary {
+    min-height: 48px;
+  }
+}

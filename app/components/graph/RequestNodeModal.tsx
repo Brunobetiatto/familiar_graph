@@ -282,6 +282,7 @@ export default function RequestNodeModal({
 
   return (
     <div
+      className="node-request-modal-backdrop"
       style={{
         position: 'fixed',
         top: 0,
@@ -299,6 +300,7 @@ export default function RequestNodeModal({
       }}
     >
       <div
+        className="node-request-modal-surface"
         style={{
           background: '#111009',
           border: '1px solid #3a3020',
@@ -451,7 +453,7 @@ export default function RequestNodeModal({
                 1. Dados do novo no
               </h3>
 
-              <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
+              <div className="node-request-modal-grid" style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
                 <div style={{ flex: 2 }}>
                   <Label>Nome completo *</Label>
                   <Input value={name} onChange={(e) => setName(e.target.value)} required />
@@ -477,7 +479,7 @@ export default function RequestNodeModal({
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: 16 }}>
+              <div className="node-request-modal-grid" style={{ display: 'flex', gap: 16 }}>
                 <div style={{ flex: 1 }}>
                   <Label>Nascimento</Label>
                   <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
@@ -497,7 +499,7 @@ export default function RequestNodeModal({
                 />
               </div>
 
-              <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div className="node-request-modal-photo-row" style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 14 }}>
                 <div
                   style={{
                     width: 54,
@@ -674,7 +676,7 @@ export default function RequestNodeModal({
                       </button>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
+                    <div className="node-request-modal-grid" style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
                       <Select
                         style={{ flex: 1 }}
                         value={conn.newNodeIsFrom ? 'FROM' : 'TO'}

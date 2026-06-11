@@ -73,7 +73,7 @@ export default function NodeDetailPanel({
     if (!node) return;
 
     window.requestAnimationFrame(() => {
-      panelRef.current?.focus();
+      panelRef.current?.focus({ preventScroll: true });
     });
   }, [node]);
 
