@@ -612,12 +612,14 @@ export default function GlobalGraphFlow({
     return (
       <div
         style={{
-          height: '100vh',
+          height: '100dvh',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           background: '#0f0d0b',
           fontFamily: '"DM Serif Display", Georgia, serif',
+          overflow: 'hidden',
+          overscrollBehavior: 'none',
         }}
       >
         <div style={{ textAlign: 'center' }}>

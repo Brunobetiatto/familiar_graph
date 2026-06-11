@@ -3,6 +3,10 @@
   --graph-primary: #c49a2a;
   --graph-border: #3a3020;
   height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
   width: 100%;
   background: var(--graph-bg);
   position: relative;
@@ -642,18 +646,47 @@
   }
 
   .graphMeta {
-    font-size: 11px;
+    align-items: baseline;
+    color: color-mix(in srgb, var(--graph-meta-muted) 88%, transparent);
+    display: block;
+    font-size: 10px;
+    line-height: 1.35;
+    margin-top: 4px;
     max-width: 100%;
-    gap: 5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .graphMetaItem {
-    min-height: 22px;
-    padding: 3px 7px;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    display: inline;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .graphMetaItem + .graphMetaItem::before {
+    color: color-mix(in srgb, var(--graph-meta-muted) 70%, transparent);
+    content: " · ";
+  }
+
+  .graphMetaItem strong {
+    color: color-mix(in srgb, var(--graph-meta-primary) 70%, #c8b898);
+    font-weight: 700;
+  }
+
+  .graphMetaItem span {
+    display: inline;
   }
 
   .graphMetaOrigin {
-    max-width: 100%;
+    display: none;
+  }
+
+  .graphMetaTheme {
+    border: 0;
   }
 
   .headerActions {
