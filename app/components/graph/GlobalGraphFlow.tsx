@@ -674,34 +674,22 @@ export default function GlobalGraphFlow({
 
       {/* Header */}
       <div
-        style={{
-          position: 'absolute',
-          top: 0, left: 0, right: 0,
-          zIndex: 10,
-          padding: '18px 24px',
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)',
-          alignItems: 'end',
-          columnGap: 16,
-          pointerEvents: 'none',
-          background: `linear-gradient(to bottom, ${tagTheme.background}e8 0%, transparent 100%)`,
-        }}
+        className={styles.graphHeader}
+        style={
+          {
+            '--graph-header-bg': `${tagTheme.background}e8`,
+          } as CSSProperties
+        }
       >
-        <div style={{ minWidth: 0 }}>
+        <div className={styles.graphTitleBlock}>
           <h1
-            style={{
-              color: tagTheme.secondary,
-              fontSize: 22,
-              fontWeight: 600,
-              margin: 0,
-              fontFamily: '"DM Serif Display", Georgia, serif',
-              letterSpacing: '0.01em',
-            }}
+            className={styles.graphTitle}
+            style={{ color: tagTheme.secondary }}
           >
             Grafo Global
           </h1>
           {layoutReady && (
-            <p style={{ color: tagTheme.muted, fontSize: 12, margin: '4px 0 0', fontFamily: 'inherit' }}>
+            <p className={styles.graphMeta} style={{ color: tagTheme.muted }}>
               {nodes.length}/{graphLimit} membros · {edges.length} conexões
               {rootNode ? ` · origem: ${rootNode.name}` : ''}
               {` · tema: ${activeTag.label}`}
@@ -713,7 +701,6 @@ export default function GlobalGraphFlow({
           className={`${styles.searchShell} ${isSearchExpanded ? styles.searchShellOpen : ''}`}
           style={
             {
-              justifySelf: 'center',
               '--search-bg': tagTheme.surface,
               '--search-border': tagTheme.border,
               '--search-primary': tagTheme.primary,
@@ -836,18 +823,13 @@ export default function GlobalGraphFlow({
         </div>
 
         <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            justifySelf: 'end',
-            pointerEvents: 'auto',
-          }}
+          className={styles.headerActions}
         >
           {currentUser && (
             <aside
               aria-label="Sessao do usuario"
               className={styles.sessionMenu}
+              tabIndex={0}
               style={{
                 '--session-bg': `${tagTheme.surface}e8`,
                 '--session-border': tagTheme.border,
@@ -885,20 +867,16 @@ export default function GlobalGraphFlow({
           )}
           <button
             onClick={handleOpenRequestModal}
-            style={{
-              padding: '8px 14px',
-              background: tagTheme.primary,
-              color: tagTheme.background,
-              border: 'none',
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontSize: 12,
-              fontWeight: 700,
-              fontFamily: 'inherit',
-              boxShadow: '0 6px 16px rgba(0,0,0,0.35)',
-            }}
+            className={styles.requestButton}
+            style={
+              {
+                '--request-bg': tagTheme.primary,
+                '--request-color': tagTheme.background,
+              } as CSSProperties
+            }
           >
-            Solicitar novo no
+            <span className={styles.requestButtonFull}>Solicitar novo no</span>
+            <span className={styles.requestButtonShort}>Novo no</span>
           </button>
         </div>
       </div>

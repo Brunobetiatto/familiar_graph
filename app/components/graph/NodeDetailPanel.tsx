@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import type { PersonNodeData } from './nodes/PersonNode';
 import { moveFocusWithin } from '@/lib/keyboard-navigation';
+import styles from './NodeDetailPanel.module.css';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -79,6 +80,7 @@ export default function NodeDetailPanel({
       ref={panelRef}
       role="dialog"
       aria-label="Detalhes do membro"
+      className={`${styles.panel} ${visible ? styles.panelVisible : ''}`}
       tabIndex={node ? 0 : -1}
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
@@ -99,35 +101,10 @@ export default function NodeDetailPanel({
           moveFocusWithin(panelRef.current, -1);
         }
       }}
-      style={{
-        position: 'absolute',
-        top: 0,
-        right: 0,
-        height: '100%',
-        width: 300,
-        maxWidth: '100vw',
-        zIndex: 20,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        background: '#111009',
-        borderLeft: '1px solid #3a3020',
-        boxShadow: '-8px 0 40px rgba(0,0,0,0.5)',
-        fontFamily: '"DM Serif Display", Georgia, serif',
-        transform: visible ? 'translateX(0)' : 'translateX(100%)',
-        transition: 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-      }}
     >
       {/* ── Cabeçalho ── */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '16px 20px',
-          borderBottom: '1px solid #2a2218',
-        }}
-      >
+      <div className={styles.header}>
+        <span className={styles.mobileHandle} aria-hidden="true" />
         <span
           style={{
             color: '#5a4e38',
@@ -163,14 +140,7 @@ export default function NodeDetailPanel({
         <>
           {/* ── Avatar + nome ── */}
           <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              padding: '28px 20px 20px',
-              borderBottom: '1px solid #2a2218',
-              minHeight: 0,
-            }}
+            className={styles.hero}
           >
             <div
               style={{
@@ -234,16 +204,7 @@ export default function NodeDetailPanel({
 
           {/* ── Campos de informação ── */}
           <div
-            style={{
-              flex: 1,
-              minHeight: 0,
-              overflowY: 'auto',
-              overflowX: 'hidden',
-              padding: '20px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 14,
-            }}
+            className={styles.content}
           >
             {formatDate(node.birthDate) && (
               <InfoRow label="Nascimento" value={formatDate(node.birthDate)!} />
@@ -307,7 +268,7 @@ export default function NodeDetailPanel({
                   Nenhuma conexao registrada.
                 </p>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div className={styles.connectionList}>
                   {connections.map((connection) => {
                     const selected = selectedEdgeId === connection.edgeId;
 
@@ -400,7 +361,7 @@ export default function NodeDetailPanel({
           </div>
 
           {/* ── Rodapé ── */}
-          <div style={{ padding: '16px 20px', borderTop: '1px solid #2a2218' }}>
+          <div className={styles.footer}>
             <GhostButton
               onClick={() => onRequestConnection?.({ id: node.id, name: node.name })}
               label="Solicitar novo nó →"
