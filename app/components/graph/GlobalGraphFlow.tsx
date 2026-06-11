@@ -55,6 +55,12 @@ type Props = {
   graphLimit?: number;
   initialActiveTag: GlobalTag;
   officialTags: GlobalTag[];
+  currentUser?: {
+    id: string;
+    email: string;
+    name: string | null;
+    role: string;
+  } | null;
 };
 
 type EdgeData = {
@@ -113,6 +119,7 @@ export default function GlobalGraphFlow({
   graphLimit = 200,
   initialActiveTag,
   officialTags,
+  currentUser = null,
 }: Props) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -600,6 +607,9 @@ export default function GlobalGraphFlow({
     setRequestPreset(null);
   }, []);
 
+  const currentUserLabel = currentUser?.name?.trim() || currentUser?.email || '';
+  const isCurrentUserAdmin = currentUser?.role === 'ADMIN';
+
   if (initialNodes.length === 0) {
     return (
       <div
@@ -669,14 +679,15 @@ export default function GlobalGraphFlow({
           top: 0, left: 0, right: 0,
           zIndex: 10,
           padding: '18px 24px',
-          display: 'flex',
-          alignItems: 'flex-end',
-          justifyContent: 'space-between',
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)',
+          alignItems: 'end',
+          columnGap: 16,
           pointerEvents: 'none',
           background: `linear-gradient(to bottom, ${tagTheme.background}e8 0%, transparent 100%)`,
         }}
       >
-        <div>
+        <div style={{ minWidth: 0 }}>
           <h1
             style={{
               color: tagTheme.secondary,
@@ -702,6 +713,7 @@ export default function GlobalGraphFlow({
           className={`${styles.searchShell} ${isSearchExpanded ? styles.searchShellOpen : ''}`}
           style={
             {
+              justifySelf: 'center',
               '--search-bg': tagTheme.surface,
               '--search-border': tagTheme.border,
               '--search-primary': tagTheme.primary,
@@ -823,7 +835,54 @@ export default function GlobalGraphFlow({
           {searchError && <p className={styles.searchError}>{searchError}</p>}
         </div>
 
-        <div style={{ pointerEvents: 'auto' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            justifySelf: 'end',
+            pointerEvents: 'auto',
+          }}
+        >
+          {currentUser && (
+            <aside
+              aria-label="Sessao do usuario"
+              className={styles.sessionMenu}
+              style={{
+                '--session-bg': `${tagTheme.surface}e8`,
+                '--session-border': tagTheme.border,
+                '--session-primary': tagTheme.primary,
+                '--session-secondary': tagTheme.secondary,
+                '--session-muted': tagTheme.muted,
+                '--session-page-bg': tagTheme.background,
+              } as CSSProperties}
+            >
+              <span
+                title={currentUser.email}
+                className={`${styles.sessionName} ${
+                  isCurrentUserAdmin ? styles.sessionNameAdmin : ''
+                }`}
+              >
+                {currentUserLabel}
+              </span>
+
+              <div className={styles.sessionActions}>
+                {isCurrentUserAdmin && (
+                  <a href="/admin" className={styles.sessionActionButton}>
+                    Admin
+                  </a>
+                )}
+                <form action="/api/auth/logout" method="post">
+                  <button
+                    type="submit"
+                    className={`${styles.sessionActionButton} ${styles.sessionLogoutButton}`}
+                  >
+                    Sair
+                  </button>
+                </form>
+              </div>
+            </aside>
+          )}
           <button
             onClick={handleOpenRequestModal}
             style={{

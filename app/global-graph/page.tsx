@@ -1,4 +1,5 @@
 import GlobalGraphFlow from '@/app/components/graph/GlobalGraphFlow';
+import { getCurrentUser } from '@/lib/current-user';
 import { getGlobalGraphWindow } from '@/lib/global-graph-window';
 import { listGlobalTags } from '@/lib/global-tags-server';
 
@@ -11,9 +12,10 @@ export const metadata = {
 };
 
 export default async function GlobalGraphPage() {
-  const [graphWindow, globalTags] = await Promise.all([
+  const [graphWindow, globalTags, currentUser] = await Promise.all([
     getGlobalGraphWindow(),
     listGlobalTags(),
+    getCurrentUser(),
   ]);
 
   return (
@@ -24,6 +26,7 @@ export default async function GlobalGraphPage() {
       graphLimit={graphWindow.limit}
       initialActiveTag={graphWindow.activeTag}
       officialTags={globalTags}
+      currentUser={currentUser}
     />
   );
 }

@@ -283,6 +283,120 @@
   font-size: 11px;
 }
 
+.sessionMenu {
+  --session-bg: #181410e8;
+  --session-border: #3a3020;
+  --session-primary: #c49a2a;
+  --session-secondary: #f0e6d3;
+  --session-muted: #8a7856;
+  --session-page-bg: #0f0d0b;
+  align-items: center;
+  animation: sessionIn 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+  background:
+    radial-gradient(circle at 18px 50%, color-mix(in srgb, var(--session-primary) 13%, transparent), transparent 34px),
+    var(--session-bg);
+  border: 1px solid var(--session-border);
+  border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+  display: flex;
+  font-family: Arial, Helvetica, sans-serif;
+  gap: 0;
+  min-height: 38px;
+  max-width: min(240px, 28vw);
+  overflow: hidden;
+  padding: 0 10px;
+  transition:
+    border-color 0.28s ease,
+    box-shadow 0.28s ease,
+    gap 0.28s ease,
+    max-width 0.36s cubic-bezier(0.16, 1, 0.3, 1),
+    padding 0.28s ease,
+    transform 0.28s ease;
+}
+
+.sessionMenu:hover,
+.sessionMenu:focus-within {
+  border-color: color-mix(in srgb, var(--session-primary) 72%, var(--session-border));
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.4),
+    0 0 0 3px color-mix(in srgb, var(--session-primary) 12%, transparent);
+  gap: 8px;
+  max-width: min(380px, 36vw);
+  padding-right: 8px;
+  transform: translateY(-1px);
+}
+
+.sessionName {
+  color: var(--session-secondary);
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  max-width: 156px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    color 0.28s ease,
+    max-width 0.28s ease,
+    text-shadow 0.28s ease;
+  white-space: nowrap;
+}
+
+.sessionNameAdmin {
+  animation: sessionAdminPulse 1.75s ease-in-out infinite;
+  color: var(--session-primary);
+}
+
+.sessionActions {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transform: translateX(12px);
+  transition:
+    max-width 0.36s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.2s ease,
+    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sessionMenu:hover .sessionActions,
+.sessionMenu:focus-within .sessionActions {
+  max-width: 154px;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.sessionActionButton {
+  align-items: center;
+  background: color-mix(in srgb, var(--session-primary) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--session-primary) 32%, var(--session-border));
+  border-radius: 6px;
+  color: var(--session-primary);
+  cursor: pointer;
+  display: inline-flex;
+  font: 800 12px Arial, Helvetica, sans-serif;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 10px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sessionActionButton:hover,
+.sessionActionButton:focus-visible {
+  background: var(--session-primary);
+  color: var(--session-page-bg);
+}
+
+.sessionLogoutButton {
+  appearance: none;
+}
+
 .tagOption:nth-child(1),
 .searchOption:nth-child(1) {
   animation-delay: 0.02s;
@@ -344,6 +458,29 @@
   }
 }
 
+@keyframes sessionIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sessionAdminPulse {
+  0%,
+  100% {
+    text-shadow: 0 0 0 color-mix(in srgb, var(--session-primary) 0%, transparent);
+  }
+  50% {
+    text-shadow:
+      0 0 10px color-mix(in srgb, var(--session-primary) 68%, transparent),
+      0 0 18px color-mix(in srgb, var(--session-primary) 32%, transparent);
+  }
+}
+
 @keyframes themeWash {
   0% {
     opacity: 0;
@@ -361,6 +498,15 @@
 @media (max-width: 820px) {
   .searchShell {
     width: min(100%, 420px);
+  }
+
+  .sessionMenu {
+    max-width: min(210px, 40vw);
+  }
+
+  .sessionMenu:hover,
+  .sessionMenu:focus-within {
+    max-width: min(330px, 58vw);
   }
 
   .searchBarOpen {
