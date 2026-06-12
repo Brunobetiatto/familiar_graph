@@ -171,6 +171,69 @@ html {
   box-shadow: 0 0 0 3px rgba(196, 154, 42, 0.1);
 }
 
+.rich-text-mention-panel {
+  animation: softDrop 0.16s ease both;
+  background: #111009;
+  border-bottom: 1px solid #2a2218;
+  display: grid;
+  font-family: sans-serif;
+  padding: 4px 0;
+}
+
+.rich-text-mention-loading {
+  color: #8a7856;
+  font-size: 11px;
+  padding: 7px 12px;
+}
+
+.rich-text-mention-results {
+  display: grid;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.rich-text-mention-results button {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: #f0e6d3;
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  padding: 7px 12px;
+  text-align: left;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.rich-text-mention-results button:hover {
+  background: rgba(196, 154, 42, 0.08);
+}
+
+.rich-text-mention-results strong,
+.rich-text-mention-results span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rich-text-mention-results strong {
+  color: #d5b85f;
+  flex: 0 1 auto;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.rich-text-mention-results span {
+  color: #8a7856;
+  flex: 1;
+  font-size: 10px;
+  padding-top: 1px;
+}
+
 .rich-text-editor .ql-toolbar.ql-snow {
   background: #181410;
   border: 0;
@@ -237,7 +300,7 @@ html {
 }
 
 .rich-text-editor .ql-editor {
-  min-height: 300px;
+  min-height: var(--rich-text-min-height, 300px);
   max-height: 560px;
   overflow-y: auto;
   line-height: 1.75;
@@ -313,16 +376,35 @@ html {
 
 .rich-text-viewer .ql-container.ql-snow {
   background: transparent;
-  border: 0;
+  border: 0 !important;
+  color: #e6dcc8;
+  font-size: 15px;
+}
+
+.rich-text-viewer.ql-container.ql-snow {
+  background: transparent;
+  border: 0 !important;
   color: #e6dcc8;
   font-size: 15px;
 }
 
 .rich-text-viewer .ql-editor {
   min-height: 0;
+  outline: 0;
   padding: 0;
   line-height: 1.8;
   overflow-wrap: anywhere;
+}
+
+.rich-text-viewer.ql-container.ql-snow .ql-editor {
+  border: 0 !important;
+  outline: 0;
+  padding: 0;
+}
+
+.rich-text-viewer .ql-editor:focus,
+.rich-text-viewer .ql-editor:focus-visible {
+  outline: 0;
 }
 
 .rich-text-viewer .ql-editor h1,
@@ -340,6 +422,31 @@ html {
 
 .rich-text-viewer .ql-editor a {
   color: #c49a2a;
+}
+
+.rich-text-editor .ql-editor a[href*="citation="],
+.rich-text-editor .ql-editor a[href*="nodeId="],
+.rich-text-editor .ql-editor a[href*="edgeId="],
+.rich-text-viewer .ql-editor a[href*="citation="],
+.rich-text-viewer .ql-editor a[href*="nodeId="],
+.rich-text-viewer .ql-editor a[href*="edgeId="] {
+  background: rgba(196, 154, 42, 0.12);
+  border: 0;
+  border-radius: 3px;
+  color: #d5b85f;
+  display: inline-block;
+  font-weight: 800;
+  line-height: 1.25;
+  padding: 1px 4px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.rich-text-viewer .ql-editor a[href*="citation="]:hover,
+.rich-text-viewer .ql-editor a[href*="nodeId="]:hover,
+.rich-text-viewer .ql-editor a[href*="edgeId="]:hover {
+  background: rgba(196, 154, 42, 0.2);
+  border-color: rgba(196, 154, 42, 0.52);
 }
 
 .rich-text-viewer .ql-editor img {

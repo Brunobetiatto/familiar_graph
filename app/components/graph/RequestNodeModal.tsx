@@ -492,10 +492,13 @@ export default function RequestNodeModal({
 
               <div style={{ marginTop: 12 }}>
                 <Label>Biografia breve</Label>
-                <textarea
+                <RichTextEditor
                   value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  style={{ ...inputStyle, minHeight: 58, maxHeight: 120, resize: 'none', overflowY: 'auto' }}
+                  onChange={setBio}
+                  citationTagSlug={tagSlug}
+                  allowImages={false}
+                  minHeight={96}
+                  placeholder="Resumo, contexto e citacoes internas..."
                 />
               </div>
 
@@ -757,6 +760,7 @@ export default function RequestNodeModal({
                         onChange={(value) =>
                           updateConnection(conn.targetNodeId, 'documentContent', value)
                         }
+                        citationTagSlug={tagSlug}
                         imageAssets={conn.documentImages}
                         onImageAssetsChange={(images) =>
                           updateConnection(conn.targetNodeId, 'documentImages', images)

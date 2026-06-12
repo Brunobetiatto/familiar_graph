@@ -71,6 +71,7 @@ export default function TagManager({ onTagsChange }: Props) {
   const [mode, setMode] = useState<'edit' | 'create'>('edit');
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [openPanels, setOpenPanels] = useState({ colors: false, relations: false });
 
   const selectedTag = useMemo(
     () => tags.find((tag) => tag.slug === selectedSlug) ?? tags[0],
@@ -145,6 +146,13 @@ export default function TagManager({ onTagsChange }: Props) {
         relations: nextRelations.length > 0 ? nextRelations : [{ key: 'OTHER', label: 'Outro' }],
       };
     });
+  }
+
+  function togglePanel(panel: keyof typeof openPanels) {
+    setOpenPanels((current) => ({
+      ...current,
+      [panel]: !current[panel],
+    }));
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -277,77 +285,91 @@ export default function TagManager({ onTagsChange }: Props) {
             <div style={{ marginTop: 10, height: 3, borderRadius: 99, background: form.theme.primary }} />
           </div>
 
-          <details className={styles.configPanel}>
-            <summary>
+          <div className={`${styles.configPanel} ${openPanels.colors ? styles.configPanelOpen : ''}`}>
+            <button
+              type="button"
+              className={styles.configPanelSummary}
+              onClick={() => togglePanel('colors')}
+              aria-expanded={openPanels.colors}
+            >
               <span>Cores do tema</span>
               <small>{COLOR_FIELDS.length} opcoes</small>
-            </summary>
+            </button>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))', gap: 10, marginTop: 12 }}>
-              {COLOR_FIELDS.map((field) => (
-                <Field key={field.key} label={field.label}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input
-                      type="color"
-                      value={form.theme[field.key]}
-                      onChange={(event) => updateTheme(field.key, event.target.value)}
-                      style={{ width: 38, height: 34, padding: 0, border: '1px solid #3a3020', background: 'transparent', borderRadius: 6 }}
-                    />
-                    <input
-                      value={form.theme[field.key]}
-                      onChange={(event) => updateTheme(field.key, event.target.value)}
-                      style={{ ...inputStyle, padding: '8px 9px', fontSize: 12 }}
-                    />
-                  </div>
-                </Field>
-              ))}
+            <div className={styles.configPanelBody}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))', gap: 10 }}>
+                {COLOR_FIELDS.map((field) => (
+                  <Field key={field.key} label={field.label}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        type="color"
+                        value={form.theme[field.key]}
+                        onChange={(event) => updateTheme(field.key, event.target.value)}
+                        style={{ width: 38, height: 34, padding: 0, border: '1px solid #3a3020', background: 'transparent', borderRadius: 6 }}
+                      />
+                      <input
+                        value={form.theme[field.key]}
+                        onChange={(event) => updateTheme(field.key, event.target.value)}
+                        style={{ ...inputStyle, padding: '8px 9px', fontSize: 12 }}
+                      />
+                    </div>
+                  </Field>
+                ))}
+              </div>
             </div>
-          </details>
+          </div>
 
-          <details className={styles.configPanel}>
-            <summary>
+          <div className={`${styles.configPanel} ${openPanels.relations ? styles.configPanelOpen : ''}`}>
+            <button
+              type="button"
+              className={styles.configPanelSummary}
+              onClick={() => togglePanel('relations')}
+              aria-expanded={openPanels.relations}
+            >
               <span>Relacoes permitidas</span>
               <small>{form.relations.length} relacoes</small>
-            </summary>
+            </button>
 
-            <div className={styles.relationHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 10, marginTop: 12 }}>
-              <p style={{ color: '#8a7856', margin: 0, fontSize: 12, fontFamily: 'sans-serif' }}>
-                O usuario so podera escolher estas relacoes ao criar nos deste tema.
-              </p>
-              <button
-                type="button"
-                onClick={addRelation}
-                style={{ padding: '8px 10px', background: '#231d16', color: '#f0e6d3', border: '1px solid #3a3020', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}
-              >
-                Adicionar
-              </button>
+            <div className={styles.configPanelBody}>
+              <div className={styles.relationHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                <p style={{ color: '#8a7856', margin: 0, fontSize: 12, fontFamily: 'sans-serif' }}>
+                  O usuario so podera escolher estas relacoes ao criar nos deste tema.
+                </p>
+                <button
+                  type="button"
+                  onClick={addRelation}
+                  style={{ padding: '8px 10px', background: '#231d16', color: '#f0e6d3', border: '1px solid #3a3020', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}
+                >
+                  Adicionar
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {form.relations.map((relation, index) => (
+                  <div key={`${index}-${relation.key}`} className={styles.relationRow} style={{ display: 'grid', gridTemplateColumns: '0.85fr 1fr auto', gap: 8, alignItems: 'center' }}>
+                    <input
+                      value={relation.key}
+                      onChange={(event) => updateRelation(index, 'key', event.target.value)}
+                      placeholder="CHAVE_TECNICA"
+                      style={{ ...inputStyle, padding: '8px 9px', fontSize: 12 }}
+                    />
+                    <input
+                      value={relation.label}
+                      onChange={(event) => updateRelation(index, 'label', event.target.value)}
+                      placeholder="Rotulo visivel"
+                      style={{ ...inputStyle, padding: '8px 9px', fontSize: 12 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeRelation(index)}
+                      style={{ height: 34, padding: '0 10px', background: 'transparent', color: '#ff6b6b', border: '1px solid #4a241e', borderRadius: 6, cursor: 'pointer' }}
+                    >
+                      Remover
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {form.relations.map((relation, index) => (
-                <div key={`${index}-${relation.key}`} className={styles.relationRow} style={{ display: 'grid', gridTemplateColumns: '0.85fr 1fr auto', gap: 8, alignItems: 'center' }}>
-                  <input
-                    value={relation.key}
-                    onChange={(event) => updateRelation(index, 'key', event.target.value)}
-                    placeholder="CHAVE_TECNICA"
-                    style={{ ...inputStyle, padding: '8px 9px', fontSize: 12 }}
-                  />
-                  <input
-                    value={relation.label}
-                    onChange={(event) => updateRelation(index, 'label', event.target.value)}
-                    placeholder="Rotulo visivel"
-                    style={{ ...inputStyle, padding: '8px 9px', fontSize: 12 }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeRelation(index)}
-                    style={{ height: 34, padding: '0 10px', background: 'transparent', color: '#ff6b6b', border: '1px solid #4a241e', borderRadius: 6, cursor: 'pointer' }}
-                  >
-                    Remover
-                  </button>
-                </div>
-              ))}
-            </div>
-          </details>
+          </div>
 
           {error && <p style={{ color: '#ff6b6b', fontSize: 12, fontFamily: 'sans-serif' }}>{error}</p>}
 

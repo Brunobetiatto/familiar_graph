@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import RichTextViewer from '@/app/components/RichTextViewer';
 import DirectNodeModal from './components/DirectNodeModal'; // 1. IMPORT AQUI NO TOPO
 import TagManager from './components/TagManager';
 import { findRelationLabel } from '@/lib/global-relations';
@@ -32,6 +33,10 @@ type NodeRequest = {
   requester: { name: string; email: string };
   connections: RequestConnection[];
 };
+
+function stripHtml(value: string) {
+  return value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
 
 export default function AdminDashboard() {
   const [requests, setRequests] = useState<NodeRequest[]>([]);
@@ -175,42 +180,34 @@ export default function AdminDashboard() {
                 <div key={req.id} className={styles.requestCard}>
                   <div className={styles.requestTop}>
                     
-                    <div style={{ minWidth: 0, display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                    <div className={styles.requestIdentity}>
                       {req.nodePhotoUrl && (
                         <div
+                          className={styles.requestPhoto}
                           style={{
-                            width: 58,
-                            height: 58,
-                            borderRadius: '50%',
                             background: `url(${req.nodePhotoUrl}) center/cover no-repeat`,
-                            border: '1px solid #3a3020',
-                            flexShrink: 0,
                           }}
                         />
                       )}
-                      <div style={{ minWidth: 0 }}>
-                        <h2 style={{ color: '#f0e6d3', margin: '0 0 8px 0', fontSize: 22 }}>
+                      <div className={styles.requestSummary}>
+                        <h2>
                           {req.nodeName}
                         </h2>
-                        <p style={{ color: '#c8b898', margin: 0, fontSize: 14, fontFamily: 'sans-serif' }}>
+                        <p className={styles.requestConnectionSummary}>
                           {summary}
                         </p>
                         <span
+                          className={styles.requestTag}
                           style={{
-                            display: 'inline-block',
-                            marginTop: 8,
                             color: tag.theme.primary,
-                            fontFamily: 'sans-serif',
-                            fontSize: 11,
-                            textTransform: 'uppercase',
                           }}
                         >
                           {tag.label}
                         </span>
                         
                         {req.nodeBio && (
-                          <p style={{ color: '#8a7856', marginTop: 12, fontSize: 13, fontStyle: 'italic', fontFamily: 'sans-serif' }}>
-                            "{req.nodeBio}"
+                          <p className={styles.requestBioPreview}>
+                            "{stripHtml(req.nodeBio)}"
                           </p>
                         )}
                       </div>
@@ -223,9 +220,9 @@ export default function AdminDashboard() {
                   </div>
 
                   {req.userNote && (
-                    <div style={{ background: '#1a1611', padding: 12, borderRadius: 6, marginTop: 16, borderLeft: '3px solid #c49a2a' }}>
-                      <span style={{ color: '#5a4e38', fontSize: 10, textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Nota do Usuário</span>
-                      <p style={{ color: '#f0e6d3', margin: 0, fontSize: 13, fontFamily: 'sans-serif' }}>{req.userNote}</p>
+                    <div className={styles.userNotePreview}>
+                      <span>Nota do Usuario</span>
+                      <p>{req.userNote}</p>
                     </div>
                   )}
 
@@ -237,18 +234,20 @@ export default function AdminDashboard() {
                       {isExpanded ? 'Ocultar detalhes' : 'Ver detalhes'}
                     </button>
 
-                    <button 
-                      onClick={() => handleAction(req.id, 'reject')}
-                      className={styles.dangerButton}
-                    >
-                      Recusar
-                    </button>
-                    <button 
-                      onClick={() => handleAction(req.id, 'approve')}
-                      className={styles.primaryButton}
-                    >
-                      Aprovar
-                    </button>
+                    <div className={styles.reviewActions}>
+                      <button
+                        onClick={() => handleAction(req.id, 'reject')}
+                        className={styles.dangerButton}
+                      >
+                        Recusar
+                      </button>
+                      <button
+                        onClick={() => handleAction(req.id, 'approve')}
+                        className={styles.primaryButton}
+                      >
+                        Aprovar
+                      </button>
+                    </div>
                   </div>
 
                   {isExpanded && (
@@ -296,9 +295,15 @@ export default function AdminDashboard() {
 
                       <div style={{ marginTop: 16 }}>
                         <span style={{ color: '#5a4e38', fontSize: 10, textTransform: 'uppercase' }}>Biografia</span>
-                        <p style={{ color: '#c8b898', margin: '6px 0 0', fontFamily: 'sans-serif', fontSize: 13 }}>
-                          {req.nodeBio || 'Nao informado'}
-                        </p>
+                        {req.nodeBio ? (
+                          <div style={{ color: '#c8b898', margin: '6px 0 0', fontFamily: 'sans-serif', fontSize: 13 }}>
+                            <RichTextViewer value={req.nodeBio} />
+                          </div>
+                        ) : (
+                          <p style={{ color: '#c8b898', margin: '6px 0 0', fontFamily: 'sans-serif', fontSize: 13 }}>
+                            Nao informado
+                          </p>
+                        )}
                       </div>
 
                       <div style={{ marginTop: 16 }}>

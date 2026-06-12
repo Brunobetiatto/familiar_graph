@@ -293,7 +293,14 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
               </div>
               <div style={{ flex: 2 }}>
                 <Label>Biografia Breve</Label>
-                <Input value={bio} onChange={(e: any) => setBio(e.target.value)} placeholder="Breve resumo..." />
+                <RichTextEditor
+                  value={bio}
+                  onChange={setBio}
+                  citationTagSlug={tagSlug}
+                  allowImages={false}
+                  minHeight={96}
+                  placeholder="Breve resumo com citacoes internas..."
+                />
               </div>
             </div>
             <div className="node-request-modal-photo-row" style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -463,6 +470,7 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
                     <RichTextEditor
                       value={conn.documentContent}
                       onChange={(value) => updateConnection(conn.targetNodeId, 'documentContent', value)}
+                      citationTagSlug={tagSlug}
                       imageAssets={conn.documentImages}
                       onImageAssetsChange={(images) => updateConnection(conn.targetNodeId, 'documentImages', images)}
                       placeholder="Escreva a história, fontes e detalhes desta ligação..."

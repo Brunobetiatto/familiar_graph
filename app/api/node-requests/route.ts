@@ -210,7 +210,7 @@ export async function POST(request: Request) {
         nodeGender: nodeData.gender || null,
         nodeBirthDate: nodeData.birthDate ? new Date(nodeData.birthDate) : null,
         nodeDeathDate: nodeData.deathDate ? new Date(nodeData.deathDate) : null,
-        nodeBio: nodeData.bio || null,
+        nodeBio: sanitizeRichText(nodeData.bio),
         nodePhotoUrl,
         nodeTagSlug,
         userNote: nodeData.userNote || null,

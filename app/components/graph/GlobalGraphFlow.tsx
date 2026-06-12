@@ -55,6 +55,8 @@ type Props = {
   graphLimit?: number;
   initialActiveTag: GlobalTag;
   officialTags: GlobalTag[];
+  initialFocusNodeId?: string | null;
+  initialFocusEdgeId?: string | null;
   currentUser?: {
     id: string;
     email: string;
@@ -84,6 +86,13 @@ type SearchResult = {
   id: string;
   name: string;
   gender?: string | null;
+};
+
+type PathSearchResult = {
+  id: string;
+  name: string;
+  photoUrl?: string | null;
+  tagSlug?: string;
 };
 
 type GraphWindowResponse = {
@@ -119,6 +128,8 @@ export default function GlobalGraphFlow({
   graphLimit = 200,
   initialActiveTag,
   officialTags,
+  initialFocusNodeId = null,
+  initialFocusEdgeId = null,
   currentUser = null,
 }: Props) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -147,8 +158,16 @@ export default function GlobalGraphFlow({
   const [isGraphLoading, setIsGraphLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [themeAnimationKey, setThemeAnimationKey] = useState(0);
+  const [isPathMenuOpen, setIsPathMenuOpen] = useState(false);
+  const [pathFromQuery, setPathFromQuery] = useState('');
+  const [pathToQuery, setPathToQuery] = useState('');
+  const [pathFromNode, setPathFromNode] = useState<PathSearchResult | null>(null);
+  const [pathToNode, setPathToNode] = useState<PathSearchResult | null>(null);
+  const [pathActiveField, setPathActiveField] = useState<'from' | 'to' | null>(null);
+  const [pathSearchResults, setPathSearchResults] = useState<PathSearchResult[]>([]);
   const tagTheme = activeTag.theme;
   const searchCloseTimerRef = useRef<number | null>(null);
+  const initialFocusAppliedRef = useRef(false);
 
   const clearSearchCloseTimer = useCallback(() => {
     if (!searchCloseTimerRef.current) return;
@@ -275,7 +294,7 @@ export default function GlobalGraphFlow({
   );
 
   useEffect(() => {
-    void applyGraphWindow(initialNodes, initialEdges, initialRootNode);
+    void applyGraphWindow(initialNodes, initialEdges, initialRootNode, initialFocusNodeId);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -318,6 +337,42 @@ export default function GlobalGraphFlow({
 
     return () => clearTimeout(delay);
   }, [activeTag.slug, searchQuery]);
+
+  useEffect(() => {
+    const activeQuery = pathActiveField === 'from' ? pathFromQuery : pathToQuery;
+
+    if (!isPathMenuOpen || !pathActiveField || activeQuery.trim().length < 2) {
+      setPathSearchResults([]);
+      return;
+    }
+
+    const delay = window.setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({
+          q: activeQuery.trim(),
+          tagSlug: activeTag.slug,
+        });
+        const res = await fetch(`/api/global-graph/path-search?${params.toString()}`);
+        if (!res.ok) return;
+
+        const results = (await res.json()) as PathSearchResult[];
+        const blockedId = pathActiveField === 'from' ? pathToNode?.id : pathFromNode?.id;
+        setPathSearchResults(results.filter((node) => node.id !== blockedId));
+      } catch (err) {
+        console.error('Erro na busca de caminho:', err);
+      }
+    }, 240);
+
+    return () => window.clearTimeout(delay);
+  }, [
+    activeTag.slug,
+    isPathMenuOpen,
+    pathActiveField,
+    pathFromNode?.id,
+    pathFromQuery,
+    pathToNode?.id,
+    pathToQuery,
+  ]);
 
   const loadGraphAroundNode = useCallback(
     async (node: { id: string; name: string }) => {
@@ -548,6 +603,20 @@ export default function GlobalGraphFlow({
     [buildConnectionDocument, edges, focusEdge, selectedNodeConnections, selectedNodeData]
   );
 
+  useEffect(() => {
+    if (!layoutReady || initialFocusAppliedRef.current) return;
+    if (!initialFocusEdgeId) return;
+
+    const edge = edges.find((item) => item.id === initialFocusEdgeId);
+    if (!edge) return;
+
+    initialFocusAppliedRef.current = true;
+    window.requestAnimationFrame(() => {
+      focusEdge(edge.id);
+      setDocumentConnection(buildConnectionDocument(edge));
+    });
+  }, [buildConnectionDocument, edges, focusEdge, initialFocusEdgeId, layoutReady]);
+
   const onNodeClick: NodeMouseHandler<Node> = useCallback(
     (_event, node) => {
       setNodes((currentNodes) =>
@@ -604,6 +673,29 @@ export default function GlobalGraphFlow({
     setIsRequestModalOpen(false);
     setRequestPreset(null);
   }, []);
+
+  const selectPathNode = useCallback((field: 'from' | 'to', node: PathSearchResult) => {
+    if (field === 'from') {
+      setPathFromNode(node);
+      setPathFromQuery(node.name);
+    } else {
+      setPathToNode(node);
+      setPathToQuery(node.name);
+    }
+
+    setPathSearchResults([]);
+  }, []);
+
+  const openPathPage = useCallback(() => {
+    if (!pathFromNode || !pathToNode) return;
+
+    const params = new URLSearchParams({
+      from: pathFromNode.id,
+      to: pathToNode.id,
+      tagSlug: activeTag.slug,
+    });
+    window.location.assign(`/global-graph/path?${params.toString()}`);
+  }, [activeTag.slug, pathFromNode, pathToNode]);
 
   const currentUserLabel = currentUser?.name?.trim() || currentUser?.email || '';
   const isCurrentUserAdmin = currentUser?.role === 'ADMIN';
@@ -724,86 +816,91 @@ export default function GlobalGraphFlow({
           )}
         </div>
 
-        <div
-          className={`${styles.searchShell} ${isSearchExpanded ? styles.searchShellOpen : ''}`}
-          style={
-            {
-              '--search-bg': tagTheme.surface,
-              '--search-border': tagTheme.border,
-              '--search-primary': tagTheme.primary,
-              '--search-secondary': tagTheme.secondary,
-              '--search-muted': tagTheme.muted,
-              '--search-page-bg': tagTheme.background,
-            } as CSSProperties
-          }
-          onKeyDown={(event) => {
-            if (event.key !== 'Escape') return;
-            closeSearchArea();
-          }}
-          onMouseEnter={() => {
-            clearSearchCloseTimer();
-            setIsSearchExpanded(true);
-            if (searchResults.length > 0 && !isFilterOpen) setIsSearchOpen(true);
-          }}
-          onMouseLeave={scheduleSearchClose}
-        >
+        <div className={styles.centerTools}>
           <div
-            className={`${styles.searchBar} ${isSearchExpanded ? styles.searchBarOpen : ''}`}
-            onClick={() => setIsSearchExpanded(true)}
+            className={`${styles.searchShell} ${
+              isSearchExpanded && !isPathMenuOpen ? styles.searchShellOpen : ''
+            } ${isPathMenuOpen ? styles.searchShellLocked : ''}`}
+            style={
+              {
+                '--search-bg': tagTheme.surface,
+                '--search-border': tagTheme.border,
+                '--search-primary': tagTheme.primary,
+                '--search-secondary': tagTheme.secondary,
+                '--search-muted': tagTheme.muted,
+                '--search-page-bg': tagTheme.background,
+              } as CSSProperties
+            }
+            onKeyDown={(event) => {
+              if (event.key !== 'Escape') return;
+              closeSearchArea();
+            }}
+            onMouseEnter={() => {
+              clearSearchCloseTimer();
+              if (isSearchExpanded && searchResults.length > 0 && !isFilterOpen) {
+                setIsSearchOpen(true);
+              }
+            }}
+            onMouseLeave={scheduleSearchClose}
           >
-            <span className={styles.searchIcon} aria-hidden="true">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M10.8 18.1a7.3 7.3 0 1 1 0-14.6 7.3 7.3 0 0 1 0 14.6Z"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                />
-                <path d="m16.2 16.2 4.3 4.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </span>
-
-            <input
-              value={searchQuery}
-              onChange={(event) => {
-                setSearchQuery(event.target.value);
-                setSearchError('');
-                setIsFilterOpen(false);
-              }}
-              onFocus={() => {
-                setIsSearchExpanded(true);
-                setIsSearchOpen(searchResults.length > 0);
-              }}
-              placeholder={isSearchExpanded ? `Buscar em ${activeTag.label}...` : 'Buscar no grafo...'}
-              className={styles.searchInput}
-            />
-
-            <div className={styles.tagTray} aria-hidden={!isSearchExpanded}>
-              <button
-                type="button"
-                className={styles.tagButton}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setIsSearchExpanded(true);
-                  setIsFilterOpen((current) => !current);
-                  setIsSearchOpen(false);
-                }}
-                tabIndex={isSearchExpanded ? 0 : -1}
-              >
-                <span className={styles.tagDot} />
-                <span>{activeTag.label}</span>
-                <svg
-                  className={`${styles.chevron} ${isFilterOpen ? styles.chevronOpen : ''}`}
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <div
+              className={`${styles.searchBar} ${
+                isSearchExpanded && !isPathMenuOpen ? styles.searchBarOpen : ''
+              }`}
+            >
+              <span className={styles.searchIcon} aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M10.8 18.1a7.3 7.3 0 1 1 0-14.6 7.3 7.3 0 0 1 0 14.6Z"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  />
+                  <path d="m16.2 16.2 4.3 4.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </svg>
-              </button>
+              </span>
+
+              <input
+                value={searchQuery}
+                onChange={(event) => {
+                  setSearchQuery(event.target.value);
+                  setSearchError('');
+                  setIsFilterOpen(false);
+                }}
+                onFocus={() => {
+                  setIsSearchExpanded(true);
+                  setIsSearchOpen(searchResults.length > 0);
+                }}
+                placeholder={isSearchExpanded && !isPathMenuOpen ? `Buscar em ${activeTag.label}...` : 'Buscar no grafo...'}
+                className={styles.searchInput}
+              />
+
+              <div className={styles.tagTray} aria-hidden={!isSearchExpanded || isPathMenuOpen}>
+                <button
+                  type="button"
+                  className={styles.tagButton}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setIsSearchExpanded(true);
+                    setIsFilterOpen((current) => !current);
+                    setIsSearchOpen(false);
+                  }}
+                  tabIndex={isSearchExpanded && !isPathMenuOpen ? 0 : -1}
+                >
+                  <span className={styles.tagDot} />
+                  <span>{activeTag.label}</span>
+                  <svg
+                    className={`${styles.chevron} ${isFilterOpen ? styles.chevronOpen : ''}`}
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              </div>
             </div>
-          </div>
 
           {isFilterOpen && isSearchExpanded && (
             <div className={styles.dropdown}>
@@ -846,7 +943,92 @@ export default function GlobalGraphFlow({
             </div>
           )}
 
-          {searchError && <p className={styles.searchError}>{searchError}</p>}
+            {searchError && <p className={styles.searchError}>{searchError}</p>}
+          </div>
+
+          <div
+            className={styles.pathMenuShell}
+            style={
+              {
+                '--path-menu-bg': tagTheme.surface,
+                '--path-menu-border': tagTheme.border,
+                '--path-menu-primary': tagTheme.primary,
+                '--path-menu-secondary': tagTheme.secondary,
+                '--path-menu-muted': tagTheme.muted,
+                '--path-menu-page-bg': tagTheme.background,
+              } as CSSProperties
+            }
+          >
+            <button
+              type="button"
+              className={`${styles.pathMenuButton} ${isPathMenuOpen ? styles.pathMenuButtonOpen : ''}`}
+              onPointerDown={() => closeSearchArea()}
+              onClick={() => {
+                closeSearchArea();
+                setIsPathMenuOpen((current) => !current);
+              }}
+              aria-expanded={isPathMenuOpen}
+              aria-label="Abrir ligacao direta"
+            >
+              <span className={styles.pathMenuIcon} aria-hidden="true">↔</span>
+              <span className={styles.pathMenuText}>Ligacao direta</span>
+            </button>
+
+            {isPathMenuOpen && (
+              <div className={styles.pathMenuPanel}>
+                <label className={styles.pathField}>
+                  <span>Origem</span>
+                  <input
+                    value={pathFromQuery}
+                    onFocus={() => setPathActiveField('from')}
+                    onChange={(event) => {
+                      setPathFromQuery(event.target.value);
+                      setPathFromNode(null);
+                      setPathActiveField('from');
+                    }}
+                    placeholder="Buscar primeiro no..."
+                  />
+                </label>
+
+                <label className={styles.pathField}>
+                  <span>Destino</span>
+                  <input
+                    value={pathToQuery}
+                    onFocus={() => setPathActiveField('to')}
+                    onChange={(event) => {
+                      setPathToQuery(event.target.value);
+                      setPathToNode(null);
+                      setPathActiveField('to');
+                    }}
+                    placeholder="Buscar segundo no..."
+                  />
+                </label>
+
+                {pathActiveField && pathSearchResults.length > 0 && (
+                  <div className={styles.pathResults}>
+                    {pathSearchResults.map((node) => (
+                      <button
+                        key={node.id}
+                        type="button"
+                        onClick={() => selectPathNode(pathActiveField, node)}
+                      >
+                        <span>{node.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  className={styles.pathSubmitButton}
+                  disabled={!pathFromNode || !pathToNode}
+                  onClick={openPathPage}
+                >
+                  Montar caminho
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div

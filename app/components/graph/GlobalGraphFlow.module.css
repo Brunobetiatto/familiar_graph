@@ -145,6 +145,16 @@
   display: none;
 }
 
+.centerTools {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+  grid-area: search;
+  justify-self: center;
+  min-width: 0;
+  pointer-events: auto;
+}
+
 .searchShell {
   --search-bg: #181410;
   --search-border: #3a3020;
@@ -157,12 +167,163 @@
   padding-bottom: 18px;
   margin-bottom: -18px;
   font-family: sans-serif;
-  grid-area: search;
-  justify-self: center;
   pointer-events: auto;
   transition:
     width 0.38s cubic-bezier(0.16, 1, 0.3, 1),
     transform 0.34s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.searchShellLocked {
+  pointer-events: none;
+  transform: none;
+  width: min(330px, 34vw);
+}
+
+.searchShellLocked .searchBar {
+  opacity: 0.58;
+}
+
+.pathMenuShell {
+  --path-menu-bg: #181410;
+  --path-menu-border: #3a3020;
+  --path-menu-primary: #c49a2a;
+  --path-menu-secondary: #f0e6d3;
+  --path-menu-muted: #8a7856;
+  --path-menu-page-bg: #0f0d0b;
+  font-family: Arial, Helvetica, sans-serif;
+  padding-bottom: 18px;
+  pointer-events: auto;
+  position: relative;
+  z-index: 14;
+}
+
+.pathMenuButton {
+  align-items: center;
+  background: color-mix(in srgb, var(--path-menu-bg) 92%, black);
+  border: 1px solid var(--path-menu-border);
+  border-radius: 999px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34);
+  color: var(--path-menu-primary);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 7px;
+  height: 42px;
+  padding: 0 13px;
+  transition:
+    border-color 0.28s ease,
+    border-radius 0.28s ease,
+    box-shadow 0.28s ease,
+    transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+
+.pathMenuButton:hover,
+.pathMenuButtonOpen {
+  border-color: color-mix(in srgb, var(--path-menu-primary) 62%, var(--path-menu-border));
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.44),
+    0 0 0 3px color-mix(in srgb, var(--path-menu-primary) 10%, transparent);
+  transform: translateY(-1px);
+}
+
+.pathMenuButtonOpen {
+  border-radius: 14px;
+}
+
+.pathMenuIcon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.pathMenuPanel {
+  animation: dropdownIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  background: color-mix(in srgb, var(--path-menu-bg) 94%, black);
+  border: 1px solid var(--path-menu-border);
+  border-radius: 12px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.52);
+  min-width: min(330px, calc(100vw - 24px));
+  padding: 12px;
+  position: absolute;
+  right: 0;
+  top: calc(100% - 10px);
+  transform-origin: top right;
+  z-index: 12;
+}
+
+.pathField {
+  display: block;
+  margin-bottom: 9px;
+}
+
+.pathField span {
+  color: var(--path-menu-muted);
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+.pathField input {
+  background: var(--path-menu-page-bg);
+  border: 1px solid var(--path-menu-border);
+  border-radius: 7px;
+  color: var(--path-menu-secondary);
+  font-size: 13px;
+  height: 38px;
+  outline: 0;
+  padding: 0 10px;
+  width: 100%;
+}
+
+.pathField input:focus {
+  border-color: color-mix(in srgb, var(--path-menu-primary) 70%, var(--path-menu-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--path-menu-primary) 11%, transparent);
+}
+
+.pathResults {
+  border: 1px solid var(--path-menu-border);
+  border-radius: 8px;
+  margin: 0 0 10px;
+  max-height: 184px;
+  overflow-y: auto;
+}
+
+.pathResults button {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--path-menu-border) 70%, transparent);
+  color: var(--path-menu-secondary);
+  cursor: pointer;
+  display: block;
+  font-size: 13px;
+  padding: 10px;
+  text-align: left;
+  width: 100%;
+}
+
+.pathResults button:hover {
+  background: color-mix(in srgb, var(--path-menu-primary) 11%, transparent);
+}
+
+.pathSubmitButton {
+  background: var(--path-menu-primary);
+  border: 0;
+  border-radius: 7px;
+  color: var(--path-menu-page-bg);
+  cursor: pointer;
+  font-weight: 800;
+  min-height: 38px;
+  width: 100%;
+}
+
+.pathSubmitButton:disabled {
+  background: color-mix(in srgb, var(--path-menu-border) 86%, black);
+  color: var(--path-menu-muted);
+  cursor: not-allowed;
 }
 
 .searchShellOpen {
@@ -640,6 +801,14 @@
     padding: 12px;
   }
 
+  .centerTools {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: minmax(0, 1fr) 56px;
+    justify-self: stretch;
+    width: 100%;
+  }
+
   .graphTitle {
     font-size: 18px;
     line-height: 1.05;
@@ -707,14 +876,13 @@
   }
 
   .searchShell {
-    justify-self: center;
     margin-bottom: 0;
     padding-bottom: 0;
-    width: min(430px, calc(100vw - 48px));
+    width: 100%;
   }
 
   .searchShellOpen {
-    width: min(460px, calc(100vw - 48px));
+    width: 100%;
   }
 
   .searchShell:hover {
@@ -766,14 +934,25 @@
     gap: 6px;
     padding: 0 8px;
   }
+
+  .pathMenuText {
+    display: none;
+  }
+
+  .pathMenuButton {
+    height: 42px;
+    justify-content: center;
+    padding: 0;
+    width: 56px;
+  }
+
+  .pathMenuPanel {
+    min-width: min(340px, calc(100vw - 24px));
+    right: 0;
+  }
 }
 
 @media (max-width: 560px) {
-  .searchShell,
-  .searchShellOpen {
-    width: min(420px, calc(100vw - 24px));
-  }
-
   .searchBarOpen {
     grid-template-columns: 34px minmax(0, 1fr) minmax(86px, 0.36fr);
   }

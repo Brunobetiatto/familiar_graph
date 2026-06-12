@@ -163,7 +163,7 @@ export async function POST(request: Request) {
           gender: nodeData.gender || null,
           birthDate: nodeData.birthDate ? new Date(nodeData.birthDate) : null,
           deathDate: nodeData.deathDate ? new Date(nodeData.deathDate) : null,
-          bio: nodeData.bio || null,
+          bio: sanitizeRichText(nodeData.bio),
           photoUrl,
           tagSlug,
           createdById: userId,

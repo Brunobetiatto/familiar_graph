@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import type { PersonNodeData } from './nodes/PersonNode';
 import { moveFocusWithin } from '@/lib/keyboard-navigation';
+import RichTextViewer from '@/app/components/RichTextViewer';
 import styles from './NodeDetailPanel.module.css';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -289,20 +290,16 @@ export default function NodeDetailPanel({
                 >
                   Biografia
                 </p>
-                <p
+                <div
                   style={{
                     color: '#9a8a6a',
                     fontSize: 13,
                     lineHeight: 1.65,
                     margin: 0,
-                    overflow: 'hidden',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 7,
-                    WebkitBoxOrient: 'vertical',
                   }}
                 >
-                  {node.bio}
-                </p>
+                  <RichTextViewer value={node.bio} />
+                </div>
               </div>
             )}
 

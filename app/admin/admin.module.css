@@ -140,17 +140,110 @@
   gap: 18px;
 }
 
+.requestTop > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.requestIdentity {
+  align-items: flex-start;
+  display: flex;
+  gap: 14px;
+  min-width: 0;
+}
+
+.requestPhoto {
+  border: 1px solid #3a3020;
+  border-radius: 50%;
+  flex-shrink: 0;
+  height: 58px;
+  width: 58px;
+}
+
+.requestSummary {
+  min-width: 0;
+}
+
+.requestSummary h2 {
+  color: #f0e6d3;
+  font-size: 22px;
+  margin: 0 0 8px;
+}
+
+.requestConnectionSummary {
+  color: #c8b898;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  margin: 0;
+}
+
+.requestTag {
+  display: inline-block;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 11px;
+  margin-top: 8px;
+  text-transform: uppercase;
+}
+
+.requestBioPreview {
+  color: #8a7856;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.55;
+  margin: 12px 0 0;
+}
+
 .requester {
+  flex: 0 0 160px;
   font-family: Arial, Helvetica, sans-serif;
   font-size: 12px;
-  min-width: 0;
+  min-width: 160px;
   text-align: right;
+}
+
+.requester span {
+  display: block;
+  white-space: nowrap;
+}
+
+.requester p {
+  overflow-wrap: anywhere;
 }
 
 .cardActions {
   align-items: center;
   justify-content: space-between;
   margin-top: 24px;
+}
+
+.reviewActions {
+  display: flex;
+  gap: 12px;
+}
+
+.userNotePreview {
+  background: #1a1611;
+  border-left: 3px solid #c49a2a;
+  border-radius: 6px;
+  margin-top: 16px;
+  padding: 12px;
+}
+
+.userNotePreview span {
+  color: #5a4e38;
+  display: block;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 10px;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.userNotePreview p {
+  color: #f0e6d3;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 13px;
+  margin: 0;
 }
 
 .tagManager {
@@ -187,8 +280,10 @@
   border-color: #3a3020;
 }
 
-.configPanel summary {
+.configPanelSummary {
   align-items: center;
+  background: transparent;
+  border: 0;
   color: #f0e6d3;
   cursor: pointer;
   display: flex;
@@ -196,23 +291,19 @@
   font-size: 13px;
   font-weight: 800;
   justify-content: space-between;
-  list-style: none;
   min-height: 44px;
   padding: 0 12px;
+  width: 100%;
   transition:
     background 0.22s ease,
     color 0.22s ease;
 }
 
-.configPanel summary:hover {
+.configPanelSummary:hover {
   background: rgba(196, 154, 42, 0.04);
 }
 
-.configPanel summary::-webkit-details-marker {
-  display: none;
-}
-
-.configPanel summary::after {
+.configPanelSummary::after {
   color: #c49a2a;
   content: "+";
   font-size: 18px;
@@ -220,16 +311,16 @@
   transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.configPanel[open] summary {
+.configPanelOpen .configPanelSummary {
   border-bottom: 1px solid #2a2218;
 }
 
-.configPanel[open] summary::after {
+.configPanelOpen .configPanelSummary::after {
   content: "-";
   transform: rotate(180deg);
 }
 
-.configPanel summary small {
+.configPanelSummary small {
   color: #8a7856;
   font-size: 11px;
   font-weight: 600;
@@ -237,9 +328,25 @@
   margin-right: 12px;
 }
 
-.configPanel > div {
-  animation: adminDetailsIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+.configPanelBody {
+  display: block;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding: 0 12px;
+  transform: translateY(-4px);
+  transition:
+    max-height 0.52s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.28s ease,
+    padding 0.34s ease,
+    transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.configPanelOpen .configPanelBody {
+  max-height: 1400px;
+  opacity: 1;
   padding: 12px;
+  transform: translateY(0);
 }
 
 .relationRow {
@@ -294,8 +401,7 @@
   }
 
   .header,
-  .requestTop,
-  .cardActions {
+  .requestTop {
     align-items: stretch;
     flex-direction: column;
   }
@@ -310,35 +416,149 @@
     line-height: 1.45;
   }
 
-  .headerActions,
-  .cardActions {
+  .headerActions {
     display: grid;
     grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .headerActions .primaryButton,
+  .headerActions .secondaryButton {
+    min-height: 42px;
     width: 100%;
   }
 
   .primaryButton,
   .secondaryButton,
   .dangerButton {
-    min-height: 42px;
-    width: 100%;
+    min-height: 38px;
+    padding: 7px 10px;
   }
 
   .requestCard {
     border-radius: 10px;
-    padding: 16px;
+    padding: 12px;
   }
 
   .requestCard:hover {
     transform: none;
   }
 
+  .requestList {
+    gap: 12px;
+  }
+
+  .requestTop {
+    gap: 10px;
+  }
+
+  .requestIdentity {
+    align-items: center;
+    gap: 10px;
+  }
+
+  .requestPhoto {
+    height: 44px;
+    width: 44px;
+  }
+
+  .requestSummary h2 {
+    display: -webkit-box;
+    font-size: 17px;
+    line-height: 1.12;
+    margin-bottom: 4px;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .requestConnectionSummary {
+    display: -webkit-box;
+    font-size: 12px;
+    line-height: 1.35;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  .requestTag {
+    font-size: 10px;
+    margin-top: 4px;
+  }
+
+  .requestBioPreview {
+    display: -webkit-box;
+    font-size: 11px;
+    line-height: 1.45;
+    margin-top: 6px;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
   .requester {
-    background: #181410;
-    border: 1px solid #2a2218;
-    border-radius: 8px;
-    padding: 10px;
+    align-items: baseline;
+    background: transparent;
+    border: 0;
+    border-top: 1px solid #2a2218;
+    display: flex;
+    flex-basis: auto;
+    gap: 8px;
+    min-width: 0;
+    padding: 8px 0 0;
     text-align: left;
+  }
+
+  .requester span {
+    flex: 0 0 auto;
+    font-size: 9px;
+  }
+
+  .requester p {
+    font-size: 11px;
+    margin: 0 !important;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .userNotePreview {
+    border-left-width: 2px;
+    margin-top: 10px;
+    padding: 8px 10px;
+  }
+
+  .userNotePreview span {
+    font-size: 9px;
+  }
+
+  .userNotePreview p {
+    display: -webkit-box;
+    font-size: 11px;
+    line-height: 1.45;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .cardActions {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 0.9fr);
+    margin-top: 12px;
+    width: 100%;
+  }
+
+  .cardActions button {
+    font-size: 12px;
+    min-height: 38px;
+    padding-inline: 6px;
+    width: 100%;
+  }
+
+  .reviewActions {
+    display: contents;
   }
 
   .tagManager {
@@ -374,7 +594,7 @@
     width: 100%;
   }
 
-  .configPanel summary {
+  .configPanelSummary {
     min-height: 48px;
   }
 }
