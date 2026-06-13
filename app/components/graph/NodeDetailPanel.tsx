@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } fr
 import type { PersonNodeData } from './nodes/PersonNode';
 import { moveFocusWithin } from '@/lib/keyboard-navigation';
 import RichTextViewer from '@/app/components/RichTextViewer';
+import RichTextEditor from '@/app/components/RichTextEditor';
 import styles from './NodeDetailPanel.module.css';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -15,6 +16,8 @@ type Props = {
   onClose: () => void;
   onSelectConnection: (edgeId: string) => void;
   onRequestConnection?: (node: { id: string; name: string }) => void;
+  canEdit?: boolean;
+  onUpdateNode?: (nodeId: string, data: NodeEditData) => Promise<void>;
 };
 
 type NodeConnection = {
@@ -26,6 +29,15 @@ type NodeConnection = {
   documentTitle: string | null;
   documentContent: string | null;
   documentImageUrl: string | null;
+};
+
+export type NodeEditData = {
+  name: string;
+  gender: PersonNodeData['gender'];
+  birthDate: string | null;
+  deathDate: string | null;
+  bio: string | null;
+  photoUrl: string | null;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -54,6 +66,26 @@ function getInitials(name: string): string {
     .join('');
 }
 
+function toDateInputValue(iso: string | null): string {
+  if (!iso) return '';
+
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+
+  return date.toISOString().slice(0, 10);
+}
+
+function createNodeEditDraft(node: PersonNodeData & { id: string }): NodeEditData {
+  return {
+    name: node.name,
+    gender: node.gender,
+    birthDate: toDateInputValue(node.birthDate) || null,
+    deathDate: toDateInputValue(node.deathDate) || null,
+    bio: node.bio ?? '',
+    photoUrl: node.photoUrl ?? '',
+  };
+}
+
 // ─── Componente ───────────────────────────────────────────────────────────────
 
 export default function NodeDetailPanel({
@@ -63,15 +95,25 @@ export default function NodeDetailPanel({
   onClose,
   onSelectConnection,
   onRequestConnection,
+  canEdit = false,
+  onUpdateNode,
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const dragStartYRef = useRef(0);
   const dragPointerIdRef = useRef<number | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState<NodeEditData | null>(null);
+  const [editError, setEditError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!node) return;
+
+    setIsEditing(false);
+    setEditDraft(createNodeEditDraft(node));
+    setEditError('');
 
     window.requestAnimationFrame(() => {
       panelRef.current?.focus({ preventScroll: true });
@@ -83,6 +125,9 @@ export default function NodeDetailPanel({
 
     setDragOffset(0);
     setIsDragging(false);
+    setIsEditing(false);
+    setEditDraft(null);
+    setEditError('');
     dragPointerIdRef.current = null;
   }, [node]);
 
@@ -118,6 +163,36 @@ export default function NodeDetailPanel({
     }
 
     setDragOffset(0);
+  }
+
+  async function handleSaveNode() {
+    if (!node || !editDraft || !onUpdateNode) return;
+
+    const name = editDraft.name.trim();
+    if (!name) {
+      setEditError('O nome do no e obrigatorio.');
+      return;
+    }
+
+    setIsSaving(true);
+    setEditError('');
+
+    try {
+      await onUpdateNode(node.id, {
+        ...editDraft,
+        name,
+        birthDate: editDraft.birthDate || null,
+        deathDate: editDraft.deathDate || null,
+        bio: editDraft.bio?.trim() || null,
+        photoUrl: editDraft.photoUrl?.trim() || null,
+      });
+      setIsEditing(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Nao foi possivel salvar o no.';
+      setEditError(message);
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -267,9 +342,124 @@ export default function NodeDetailPanel({
           </div>
 
           {/* ── Campos de informação ── */}
-          <div
-            className={styles.content}
-          >
+          <div className={styles.content}>
+            {isEditing && editDraft ? (
+              <div className={styles.editForm}>
+                <label className={styles.editField}>
+                  <span>Nome</span>
+                  <input
+                    value={editDraft.name}
+                    onChange={(event) =>
+                      setEditDraft((current) =>
+                        current ? { ...current, name: event.target.value } : current
+                      )
+                    }
+                  />
+                </label>
+
+                <label className={styles.editField}>
+                  <span>Genero</span>
+                  <select
+                    value={editDraft.gender ?? ''}
+                    onChange={(event) =>
+                      setEditDraft((current) =>
+                        current
+                          ? {
+                              ...current,
+                              gender: (event.target.value || null) as PersonNodeData['gender'],
+                            }
+                          : current
+                      )
+                    }
+                  >
+                    <option value="">Nao informado</option>
+                    <option value="MALE">Masculino</option>
+                    <option value="FEMALE">Feminino</option>
+                    <option value="OTHER">Outro</option>
+                  </select>
+                </label>
+
+                <div className={styles.editGrid}>
+                  <label className={styles.editField}>
+                    <span>Nascimento</span>
+                    <input
+                      type="date"
+                      value={editDraft.birthDate ?? ''}
+                      onChange={(event) =>
+                        setEditDraft((current) =>
+                          current ? { ...current, birthDate: event.target.value || null } : current
+                        )
+                      }
+                    />
+                  </label>
+
+                  <label className={styles.editField}>
+                    <span>Falecimento</span>
+                    <input
+                      type="date"
+                      value={editDraft.deathDate ?? ''}
+                      onChange={(event) =>
+                        setEditDraft((current) =>
+                          current ? { ...current, deathDate: event.target.value || null } : current
+                        )
+                      }
+                    />
+                  </label>
+                </div>
+
+                <label className={styles.editField}>
+                  <span>URL da foto</span>
+                  <input
+                    value={editDraft.photoUrl ?? ''}
+                    onChange={(event) =>
+                      setEditDraft((current) =>
+                        current ? { ...current, photoUrl: event.target.value } : current
+                      )
+                    }
+                    placeholder="https://..."
+                  />
+                </label>
+
+                <div className={styles.editField}>
+                  <span>Biografia</span>
+                  <RichTextEditor
+                    value={editDraft.bio ?? ''}
+                    onChange={(value) =>
+                      setEditDraft((current) => (current ? { ...current, bio: value } : current))
+                    }
+                    citationTagSlug={node.tagSlug}
+                    allowImages={false}
+                    minHeight={180}
+                  />
+                </div>
+
+                {editError && <p className={styles.editError}>{editError}</p>}
+
+                <div className={styles.editActions}>
+                  <button
+                    type="button"
+                    className={styles.editCancelButton}
+                    onClick={() => {
+                      setEditDraft(createNodeEditDraft(node));
+                      setIsEditing(false);
+                      setEditError('');
+                    }}
+                    disabled={isSaving}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.editSaveButton}
+                    onClick={() => void handleSaveNode()}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? 'Salvando...' : 'Salvar'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+            <>
             {formatDate(node.birthDate) && (
               <InfoRow label="Nascimento" value={formatDate(node.birthDate)!} />
             )}
@@ -418,10 +608,24 @@ export default function NodeDetailPanel({
                 </div>
               )}
             </div>
+            </>
+            )}
           </div>
 
           {/* ── Rodapé ── */}
           <div className={styles.footer}>
+            {canEdit && !isEditing && (
+              <button
+                type="button"
+                className={styles.adminEditButton}
+                onClick={() => {
+                  setEditDraft(createNodeEditDraft(node));
+                  setIsEditing(true);
+                }}
+              >
+                Editar nó
+              </button>
+            )}
             <GhostButton
               onClick={() => onRequestConnection?.({ id: node.id, name: node.name })}
               label="Solicitar novo nó →"

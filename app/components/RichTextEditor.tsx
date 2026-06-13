@@ -40,6 +40,7 @@ type QuillInstance = {
   getSelection: (focus?: boolean) => { index: number; length: number } | null;
   getText: (index: number, length?: number) => string;
   getLength: () => number;
+  getLine: (index: number) => [{ domNode?: Node; length?: () => number } | null, number];
   setSelection: (index: number, length?: number, source?: string) => void;
   insertEmbed: (index: number, type: string, value: string, source?: string) => void;
   deleteText: (index: number, length: number, source?: string) => void;
@@ -48,19 +49,6 @@ type QuillInstance = {
     dangerouslyPasteHTML(index: number, html: string, source?: string): void;
   };
   getModule: (name: string) => { addHandler?: (name: string, callback: () => void) => void };
-};
-
-const imageControlButtonStyle: CSSProperties = {
-  minWidth: 42,
-  height: 30,
-  border: '1px solid #3a3020',
-  borderRadius: 5,
-  background: '#15110d',
-  color: '#c8b898',
-  cursor: 'pointer',
-  fontSize: 12,
-  fontWeight: 700,
-  fontFamily: 'sans-serif',
 };
 
 function findImageFromTarget(target: EventTarget | null): HTMLImageElement | null {
@@ -105,6 +93,7 @@ export default function RichTextEditor({
   const onChangeRef = useRef(onChange);
   const onImageAssetsChangeRef = useRef(onImageAssetsChange);
   const [selectedImageKey, setSelectedImageKey] = useState<string | null>(null);
+  const [, setImageControlVersion] = useState(0);
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionRange, setMentionRange] = useState<{ index: number; length: number } | null>(null);
   const [mentionResults, setMentionResults] = useState<CitationSearchItem[]>([]);
@@ -182,6 +171,7 @@ export default function RichTextEditor({
           toolbar: {
             container: [
               [{ header: [1, 2, 3, false] }],
+              [{ font: [] }, { size: ['small', false, 'large', 'huge'] }],
               ['bold', 'italic', 'underline', 'strike'],
               [{ color: [] }, { background: [] }],
               ['blockquote'],
@@ -247,6 +237,7 @@ export default function RichTextEditor({
       quill.root.addEventListener('click', (event) => {
         const image = findImageFromTarget(event.target);
         setSelectedImageKey(image?.dataset.uploadKey ?? null);
+        setImageControlVersion((current) => current + 1);
       });
 
       quill.root.addEventListener('keydown', (event) => {
@@ -330,6 +321,9 @@ export default function RichTextEditor({
         `img[data-upload-key="${selectedImageKey}"]`
       ) ?? null
     : null;
+  const selectedImageWidth = selectedImage
+    ? Number.parseInt(selectedImage.style.width || '70', 10) || 70
+    : 70;
 
   const updateSelectedImage = (styles: CSSProperties) => {
     if (!selectedImage) return;
@@ -338,7 +332,13 @@ export default function RichTextEditor({
       if (styleValue === undefined || styleValue === null) return;
       selectedImage.style.setProperty(key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`), String(styleValue));
     });
+    setImageControlVersion((current) => current + 1);
     emitHtml();
+  };
+
+  const updateSelectedImageWidth = (width: number) => {
+    const safeWidth = Math.max(10, Math.min(100, Math.round(width)));
+    updateSelectedImage({ width: `${safeWidth}%`, maxWidth: '100%' });
   };
 
   const removeSelectedImage = () => {
@@ -352,6 +352,26 @@ export default function RichTextEditor({
       imageAssetsRef.current.filter((item) => item.key !== selectedImageKey)
     );
     setSelectedImageKey(null);
+    emitHtml();
+  };
+
+  const applyCurrentBlockStyles = (styles: CSSProperties) => {
+    const quill = quillRef.current;
+    if (!quill) return;
+
+    const range = quill.getSelection(true);
+    const [line] = quill.getLine(range?.index ?? Math.max(quill.getLength() - 1, 0));
+    const node = line?.domNode;
+    const element = node instanceof HTMLElement ? node : node?.parentElement;
+    if (!element) return;
+
+    Object.entries(styles).forEach(([key, styleValue]) => {
+      if (styleValue === undefined || styleValue === null) return;
+      element.style.setProperty(
+        key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`),
+        String(styleValue)
+      );
+    });
     emitHtml();
   };
 
@@ -381,47 +401,187 @@ export default function RichTextEditor({
       className="rich-text-editor"
       style={{ '--rich-text-min-height': `${minHeight}px` } as CSSProperties}
     >
+      <div className="rich-text-format-controls">
+        <span>Texto</span>
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => applyCurrentBlockStyles({ lineHeight: '1.35', marginTop: '0', marginBottom: '6px' })}
+        >
+          Compacto
+        </button>
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => applyCurrentBlockStyles({ lineHeight: '1.7', marginTop: '0', marginBottom: '12px' })}
+        >
+          Normal
+        </button>
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => applyCurrentBlockStyles({ lineHeight: '2', marginTop: '0', marginBottom: '18px' })}
+        >
+          Aberto
+        </button>
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => applyCurrentBlockStyles({ textAlign: 'left' })}
+        >
+          Esq
+        </button>
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => applyCurrentBlockStyles({ textAlign: 'center' })}
+        >
+          Centro
+        </button>
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => applyCurrentBlockStyles({ textAlign: 'right' })}
+        >
+          Dir
+        </button>
+      </div>
+
       {allowImages && selectedImage && (
         <div className="rich-text-image-controls">
-          <span>Imagem</span>
-          {[35, 50, 70, 100].map((width) => (
-            <button
-              key={width}
-              type="button"
-              style={imageControlButtonStyle}
-              onClick={() => updateSelectedImage({ width: `${width}%`, maxWidth: '100%' })}
-            >
-              {width}%
+          <div className="rich-text-image-controls-header">
+            <span>Imagem selecionada</span>
+            <button type="button" className="rich-text-image-remove" onClick={removeSelectedImage}>
+              Remover
             </button>
-          ))}
-          <button
-            type="button"
-            style={imageControlButtonStyle}
-            onClick={() => updateSelectedImage({ marginLeft: '0', marginRight: 'auto' })}
-          >
-            Esq
-          </button>
-          <button
-            type="button"
-            style={imageControlButtonStyle}
-            onClick={() => updateSelectedImage({ marginLeft: 'auto', marginRight: 'auto' })}
-          >
-            Meio
-          </button>
-          <button
-            type="button"
-            style={imageControlButtonStyle}
-            onClick={() => updateSelectedImage({ marginLeft: 'auto', marginRight: '0' })}
-          >
-            Dir
-          </button>
-          <button
-            type="button"
-            style={{ ...imageControlButtonStyle, color: '#ff8a8a' }}
-            onClick={removeSelectedImage}
-          >
-            Remover
-          </button>
+          </div>
+
+          <div className="rich-text-image-control-grid">
+            <div className="rich-text-image-control-group">
+              <span>Tamanho</span>
+              <div className="rich-text-image-size-control">
+                <input
+                  type="range"
+                  min="10"
+                  max="100"
+                  step="1"
+                  value={selectedImageWidth}
+                  aria-label="Tamanho da imagem em porcentagem"
+                  onChange={(event) => updateSelectedImageWidth(Number(event.target.value))}
+                />
+                <label>
+                  <input
+                    type="number"
+                    min="10"
+                    max="100"
+                    value={selectedImageWidth}
+                    aria-label="Porcentagem da largura da imagem"
+                    onChange={(event) => updateSelectedImageWidth(Number(event.target.value))}
+                  />
+                  <span>%</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="rich-text-image-control-group">
+              <span>Alinhamento</span>
+              <div>
+                <button
+                  type="button"
+                  className="rich-text-image-icon-button"
+                  title="Alinhar imagem à esquerda"
+                  aria-label="Alinhar imagem à esquerda"
+                  onClick={() => updateSelectedImage({ marginLeft: '0', marginRight: 'auto' })}
+                >
+                  ←
+                </button>
+                <button
+                  type="button"
+                  className="rich-text-image-icon-button"
+                  title="Centralizar imagem"
+                  aria-label="Centralizar imagem"
+                  onClick={() => updateSelectedImage({ marginLeft: 'auto', marginRight: 'auto' })}
+                >
+                  ↔
+                </button>
+                <button
+                  type="button"
+                  className="rich-text-image-icon-button"
+                  title="Alinhar imagem à direita"
+                  aria-label="Alinhar imagem à direita"
+                  onClick={() => updateSelectedImage({ marginLeft: 'auto', marginRight: '0' })}
+                >
+                  →
+                </button>
+              </div>
+            </div>
+
+            <div className="rich-text-image-control-group">
+              <span>Espaçamento</span>
+              <div>
+                <button
+                  type="button"
+                  className="rich-text-image-icon-button"
+                  title="Espaçamento compacto"
+                  aria-label="Espaçamento compacto"
+                  onClick={() => updateSelectedImage({ marginTop: '6px', marginBottom: '6px' })}
+                >
+                  ↕−
+                </button>
+                <button
+                  type="button"
+                  className="rich-text-image-icon-button"
+                  title="Espaçamento normal"
+                  aria-label="Espaçamento normal"
+                  onClick={() => updateSelectedImage({ marginTop: '14px', marginBottom: '14px' })}
+                >
+                  ↕
+                </button>
+                <button
+                  type="button"
+                  className="rich-text-image-icon-button"
+                  title="Espaçamento amplo"
+                  aria-label="Espaçamento amplo"
+                  onClick={() => updateSelectedImage({ marginTop: '24px', marginBottom: '24px' })}
+                >
+                  ↕+
+                </button>
+              </div>
+            </div>
+
+            <div className="rich-text-image-control-group">
+              <span>Borda</span>
+              <div>
+                <button
+                  type="button"
+                  className="rich-text-image-icon-button"
+                  title="Imagem com canto reto"
+                  aria-label="Imagem com canto reto"
+                  onClick={() => updateSelectedImage({ borderRadius: '0' })}
+                >
+                  □
+                </button>
+                <button
+                  type="button"
+                  className="rich-text-image-icon-button"
+                  title="Imagem com canto suave"
+                  aria-label="Imagem com canto suave"
+                  onClick={() => updateSelectedImage({ borderRadius: '8px' })}
+                >
+                  ▢
+                </button>
+                <button
+                  type="button"
+                  className="rich-text-image-icon-button"
+                  title="Imagem mais arredondada"
+                  aria-label="Imagem mais arredondada"
+                  onClick={() => updateSelectedImage({ borderRadius: '16px' })}
+                >
+                  ○
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

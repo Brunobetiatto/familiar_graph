@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import RichTextViewer from '@/app/components/RichTextViewer';
 import DirectNodeModal from './components/DirectNodeModal'; // 1. IMPORT AQUI NO TOPO
 import TagManager from './components/TagManager';
 import { findRelationLabel } from '@/lib/global-relations';
 import { OFFICIAL_GLOBAL_TAGS, getGlobalTag, type GlobalTag } from '@/lib/global-tags';
+import { getPasswordErrors } from '@/lib/auth-security';
 import styles from './admin.module.css';
 
 type RequestConnection = {
@@ -45,6 +46,16 @@ export default function AdminDashboard() {
   const [globalTags, setGlobalTags] = useState<GlobalTag[]>(OFFICIAL_GLOBAL_TAGS);
   const router = useRouter();
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
+  const [isAdminCreatorOpen, setIsAdminCreatorOpen] = useState(false);
+  const [adminForm, setAdminForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
+  const [adminCreateError, setAdminCreateError] = useState('');
+  const [adminCreateSuccess, setAdminCreateSuccess] = useState('');
+  const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
 
   // 2. ESTADO DO MODAL AQUI (Dentro da função principal)
   const [isDirectModalOpen, setIsDirectModalOpen] = useState(false);
@@ -101,6 +112,52 @@ export default function AdminDashboard() {
     }
   }
 
+  async function handleCreateAdmin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setAdminCreateError('');
+    setAdminCreateSuccess('');
+
+    if (adminForm.password !== adminForm.confirmPassword) {
+      setAdminCreateError('As senhas nao conferem.');
+      return;
+    }
+
+    const passwordErrors = getPasswordErrors(adminForm.password);
+    if (passwordErrors.length > 0) {
+      setAdminCreateError(passwordErrors.join(' '));
+      return;
+    }
+
+    setIsCreatingAdmin(true);
+
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adminForm),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        const details = Array.isArray(data.details) ? ` ${data.details.join(' ')}` : '';
+        throw new Error(`${data.error || 'Nao foi possivel criar o admin.'}${details}`);
+      }
+
+      setAdminCreateSuccess(`Administrador ${data.user.email} criado.`);
+      setAdminForm({
+        name: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Nao foi possivel criar o admin.';
+      setAdminCreateError(message);
+    } finally {
+      setIsCreatingAdmin(false);
+    }
+  }
+
   if (isLoading) {
     return <div className={styles.loading}>Carregando painel...</div>;
   }
@@ -119,6 +176,7 @@ export default function AdminDashboard() {
     if (value === 'OTHER') return 'Outro';
     return value;
   };
+  const adminPasswordErrors = adminForm.password ? getPasswordErrors(adminForm.password) : [];
 
   return (
     <div className={styles.page}>
@@ -151,6 +209,105 @@ export default function AdminDashboard() {
         
 
         <TagManager onTagsChange={setGlobalTags} />
+
+        <section
+          className={`${styles.adminCreator} ${
+            isAdminCreatorOpen ? styles.adminCreatorOpen : ''
+          }`}
+        >
+          <button
+            type="button"
+            className={styles.adminCreatorSummary}
+            onClick={() => setIsAdminCreatorOpen((current) => !current)}
+            aria-expanded={isAdminCreatorOpen}
+          >
+            <span>Criar administrador</span>
+          </button>
+
+          <div className={styles.adminCreatorBody}>
+            <form className={styles.adminCreatorForm} onSubmit={handleCreateAdmin}>
+              <label className={styles.adminField}>
+                <span>Nome</span>
+                <input
+                  value={adminForm.name}
+                  onChange={(event) =>
+                    setAdminForm((current) => ({ ...current, name: event.target.value }))
+                  }
+                  placeholder="Nome do administrador"
+                />
+              </label>
+
+              <label className={styles.adminField}>
+                <span>E-mail</span>
+                <input
+                  type="email"
+                  value={adminForm.email}
+                  onChange={(event) =>
+                    setAdminForm((current) => ({ ...current, email: event.target.value }))
+                  }
+                  placeholder="admin@exemplo.com"
+                  required
+                />
+              </label>
+
+              <div className={styles.adminCreatorGrid}>
+                <label className={styles.adminField}>
+                  <span>Senha</span>
+                  <input
+                    type="password"
+                    value={adminForm.password}
+                    onChange={(event) =>
+                      setAdminForm((current) => ({ ...current, password: event.target.value }))
+                    }
+                    placeholder="Senha segura"
+                    required
+                  />
+                </label>
+
+                <label className={styles.adminField}>
+                  <span>Confirmar senha</span>
+                  <input
+                    type="password"
+                    value={adminForm.confirmPassword}
+                    onChange={(event) =>
+                      setAdminForm((current) => ({
+                        ...current,
+                        confirmPassword: event.target.value,
+                      }))
+                    }
+                    placeholder="Repita a senha"
+                    required
+                  />
+                </label>
+              </div>
+
+              <div className={styles.passwordHints} data-valid={adminPasswordErrors.length === 0 && adminForm.password ? 'true' : undefined}>
+                {adminForm.password ? (
+                  adminPasswordErrors.length === 0 ? (
+                    <span>Senha atende aos requisitos.</span>
+                  ) : (
+                    adminPasswordErrors.map((item) => <span key={item}>{item}</span>)
+                  )
+                ) : (
+                  <span>Use 10+ caracteres, letras maiuscula/minuscula, numero e simbolo.</span>
+                )}
+              </div>
+
+              {adminCreateError && <p className={styles.adminCreateError}>{adminCreateError}</p>}
+              {adminCreateSuccess && (
+                <p className={styles.adminCreateSuccess}>{adminCreateSuccess}</p>
+              )}
+
+              <button
+                type="submit"
+                className={styles.primaryButton}
+                disabled={isCreatingAdmin}
+              >
+                {isCreatingAdmin ? 'Criando...' : 'Criar admin'}
+              </button>
+            </form>
+          </div>
+        </section>
 
         {error && <p style={{ color: '#ff6b6b' }}>{error}</p>}
 

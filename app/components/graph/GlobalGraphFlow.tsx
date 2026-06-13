@@ -6,7 +6,6 @@ import {
   ReactFlow,
   Background,
   Controls,
-  MiniMap,
   useNodesState,
   useEdgesState,
   BackgroundVariant,
@@ -19,9 +18,12 @@ import {
 } from '@xyflow/react';
 
 import PersonNode, { type PersonNodeData } from './nodes/PersonNode';
-import NodeDetailPanel from './NodeDetailPanel';
+import NodeDetailPanel, { type NodeEditData } from './NodeDetailPanel';
 import RequestNodeModal from './RequestNodeModal';
-import ConnectionDocumentModal, { type ConnectionDocument } from './ConnectionDocumentModal';
+import ConnectionDocumentModal, {
+  type ConnectionDocument,
+  type ConnectionEditData,
+} from './ConnectionDocumentModal';
 import ElkEdge from './edges/ElkEdge';
 import { applyElkLayout } from '@/lib/graph-layout'; // ← NOVO IMPORT
 import type { GlobalTag } from '@/lib/global-tags';
@@ -674,6 +676,103 @@ export default function GlobalGraphFlow({
     setRequestPreset(null);
   }, []);
 
+  const handleUpdateNode = useCallback(
+    async (nodeId: string, data: NodeEditData) => {
+      const response = await fetch(`/api/admin/global-nodes/${nodeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Nao foi possivel atualizar o no.');
+      }
+
+      const previousData = nodes.find((node) => node.id === nodeId)?.data as
+        | PersonNodeData
+        | undefined;
+      const nextNodeData: PersonNodeData = {
+        name: result.name,
+        birthDate: result.birthDate ?? null,
+        deathDate: result.deathDate ?? null,
+        gender: result.gender ?? null,
+        bio: result.bio ?? null,
+        photoUrl: result.photoUrl ?? null,
+        tagSlug: previousData?.tagSlug ?? activeTag.slug,
+        tagLabel: previousData?.tagLabel ?? activeTag.label,
+        tagColor: previousData?.tagColor ?? activeTag.theme.primary,
+      };
+
+      setNodes((currentNodes) =>
+        currentNodes.map((node) =>
+          node.id === nodeId
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  ...nextNodeData,
+                  label: nextNodeData.name,
+                },
+              }
+            : node
+        )
+      );
+
+      setSelectedNodeData((current) =>
+        current?.id === nodeId ? { ...current, ...nextNodeData } : current
+      );
+
+      setRootNode((current) =>
+        current?.id === nodeId ? { ...current, name: nextNodeData.name } : current
+      );
+    },
+    [activeTag.label, activeTag.slug, activeTag.theme.primary, nodes, setNodes]
+  );
+
+  const handleUpdateConnection = useCallback(
+    async (edgeId: string, data: ConnectionEditData) => {
+      const response = await fetch(`/api/admin/global-edges/${edgeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Nao foi possivel atualizar a ligacao.');
+      }
+
+      const nextConnectionData = {
+        relation: result.relationLabel ?? result.relation ?? data.relation,
+        description: result.description ?? null,
+        documentTitle: result.documentTitle ?? null,
+        documentContent: result.documentContent ?? null,
+        documentImageUrl: result.documentImageUrl ?? null,
+      };
+
+      setEdges((currentEdges) =>
+        currentEdges.map((edge) =>
+          edge.id === edgeId
+            ? {
+                ...edge,
+                label: nextConnectionData.relation,
+                data: {
+                  ...edge.data,
+                  ...nextConnectionData,
+                },
+              }
+            : edge
+        )
+      );
+
+      setDocumentConnection((current) =>
+        current?.edgeId === edgeId ? { ...current, ...nextConnectionData } : current
+      );
+    },
+    [setEdges]
+  );
+
   const selectPathNode = useCallback((field: 'from' | 'to', node: PathSearchResult) => {
     if (field === 'from') {
       setPathFromNode(node);
@@ -1163,18 +1262,6 @@ export default function GlobalGraphFlow({
           }}
         />
 
-        {nodes.length <= 120 && (
-          <MiniMap
-            style={{
-              background: tagTheme.surface,
-              border: `1px solid ${tagTheme.border}`,
-              borderRadius: 8,
-            }}
-            nodeColor={tagTheme.border}
-            nodeStrokeColor={tagTheme.primary}
-            maskColor="rgba(10, 9, 7, 0.82)"
-          />
-        )}
       </ReactFlow>
 
       <NodeDetailPanel
@@ -1188,11 +1275,16 @@ export default function GlobalGraphFlow({
         }}
         onSelectConnection={openConnectionDocument}
         onRequestConnection={handleRequestConnection}
+        canEdit={isCurrentUserAdmin}
+        onUpdateNode={handleUpdateNode}
       />
 
       <ConnectionDocumentModal
         connection={documentConnection}
         onClose={() => setDocumentConnection(null)}
+        canEdit={isCurrentUserAdmin}
+        citationTagSlug={activeTag.slug}
+        onUpdateConnection={handleUpdateConnection}
       />
 
       <RequestNodeModal

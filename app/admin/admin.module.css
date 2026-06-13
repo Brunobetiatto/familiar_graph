@@ -246,6 +246,202 @@
   margin: 0;
 }
 
+.adminCreator {
+  animation: adminCardIn 0.48s 0.08s cubic-bezier(0.16, 1, 0.3, 1) both;
+  background: #111009;
+  border: 1px solid #2a2218;
+  border-radius: 12px;
+  margin: 18px 0 22px;
+  overflow: hidden;
+  transition:
+    border-color 0.24s ease,
+    box-shadow 0.28s ease;
+}
+
+.adminCreator:hover {
+  border-color: #3a3020;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.16);
+}
+
+.adminCreatorSummary {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: #f0e6d3;
+  cursor: pointer;
+  display: flex;
+  font-family: Arial, Helvetica, sans-serif;
+  gap: 12px;
+  justify-content: space-between;
+  min-height: 54px;
+  padding: 0 16px;
+  text-align: left;
+  width: 100%;
+  transition:
+    background 0.22s ease,
+    color 0.22s ease;
+}
+
+.adminCreatorSummary:hover {
+  background: rgba(196, 154, 42, 0.04);
+}
+
+.adminCreatorSummary::after {
+  color: #c49a2a;
+  content: "+";
+  font-size: 20px;
+  line-height: 1;
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.adminCreatorOpen .adminCreatorSummary {
+  border-bottom: 1px solid #2a2218;
+}
+
+.adminCreatorOpen .adminCreatorSummary::after {
+  content: "-";
+  transform: rotate(180deg);
+}
+
+.adminCreatorSummary span {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.adminCreatorSummary small {
+  color: #8a7856;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.adminCreatorBody {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding: 0 16px;
+  transform: translateY(-4px);
+  transition:
+    max-height 0.52s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.28s ease,
+    padding 0.34s ease,
+    transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.adminCreatorOpen .adminCreatorBody {
+  max-height: 720px;
+  opacity: 1;
+  padding: 16px;
+  transform: translateY(0);
+}
+
+.adminCreatorForm {
+  display: grid;
+  gap: 12px;
+}
+
+.adminCreatorGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.adminField {
+  display: grid;
+  gap: 7px;
+}
+
+.adminField span {
+  color: #6e5d3e;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.adminField input {
+  background: #0d0b08;
+  border: 1px solid #3a3020;
+  border-radius: 8px;
+  color: #eadfc8;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 13px;
+  min-height: 40px;
+  outline: none;
+  padding: 10px 11px;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+  width: 100%;
+}
+
+.adminField input:focus {
+  border-color: #b99335;
+  box-shadow: 0 0 0 3px rgba(196, 154, 42, 0.14);
+}
+
+.passwordHints {
+  background: rgba(196, 154, 42, 0.055);
+  border: 1px solid rgba(196, 154, 42, 0.12);
+  border-radius: 8px;
+  color: #9a8a6a;
+  display: flex;
+  flex-wrap: wrap;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  gap: 6px;
+  line-height: 1.45;
+  padding: 9px 10px;
+}
+
+.passwordHints span {
+  display: inline-flex;
+}
+
+.passwordHints span:not(:last-child)::after {
+  color: #5a4e38;
+  content: "·";
+  margin-left: 6px;
+}
+
+.passwordHints[data-valid="true"] {
+  background: rgba(91, 138, 72, 0.12);
+  border-color: rgba(128, 177, 96, 0.24);
+  color: #b9d08a;
+}
+
+.adminCreateError,
+.adminCreateSuccess {
+  border-radius: 8px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0;
+  padding: 9px 10px;
+}
+
+.adminCreateError {
+  background: rgba(137, 54, 43, 0.16);
+  border: 1px solid rgba(220, 90, 70, 0.32);
+  color: #ffb6a8;
+}
+
+.adminCreateSuccess {
+  background: rgba(91, 138, 72, 0.12);
+  border: 1px solid rgba(128, 177, 96, 0.24);
+  color: #b9d08a;
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.dangerButton:disabled {
+  cursor: wait;
+  opacity: 0.62;
+  transform: none;
+}
+
 .tagManager {
   animation: adminCardIn 0.48s 0.04s cubic-bezier(0.16, 1, 0.3, 1) both;
   overflow: hidden;
@@ -572,9 +768,34 @@
   }
 
   .tagManagerGrid,
+  .adminCreatorGrid,
   .twoColumnForm,
   .relationRow {
     grid-template-columns: 1fr !important;
+  }
+
+  .adminCreator {
+    margin: 14px 0 18px;
+  }
+
+  .adminCreatorSummary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+    min-height: 62px;
+    padding: 10px 14px;
+    position: relative;
+  }
+
+  .adminCreatorSummary::after {
+    position: absolute;
+    right: 14px;
+    top: 18px;
+  }
+
+  .adminCreatorSummary small {
+    margin-left: 0;
+    margin-right: 28px;
   }
 
   .tagManagerGrid > div:first-child {

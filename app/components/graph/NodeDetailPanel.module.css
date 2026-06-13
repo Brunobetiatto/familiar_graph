@@ -66,7 +66,157 @@
 
 .footer {
   border-top: 1px solid #2a2218;
+  display: grid;
+  gap: 10px;
   padding: 16px 20px;
+}
+
+.adminEditButton {
+  background: rgba(196, 154, 42, 0.12);
+  border: 1px solid rgba(196, 154, 42, 0.32);
+  border-radius: 8px;
+  color: #d8b44b;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 16px;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+  width: 100%;
+}
+
+.adminEditButton:hover {
+  background: rgba(196, 154, 42, 0.18);
+  border-color: rgba(196, 154, 42, 0.58);
+  color: #f0d26f;
+  transform: translateY(-1px);
+}
+
+.editForm {
+  animation: detailEditIn 0.28s ease both;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.editGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.editField {
+  display: grid;
+  gap: 7px;
+}
+
+.editField > span {
+  color: #6e5d3e;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.editField input,
+.editField select {
+  background: #0d0b08;
+  border: 1px solid #3a3020;
+  border-radius: 8px;
+  color: #eadfc8;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 13px;
+  min-height: 38px;
+  outline: none;
+  padding: 9px 10px;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+  width: 100%;
+}
+
+.editField input:focus,
+.editField select:focus {
+  border-color: #b99335;
+  box-shadow: 0 0 0 3px rgba(196, 154, 42, 0.14);
+}
+
+.editField :global(.rich-text-editor) {
+  border-radius: 8px;
+}
+
+.editActions {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.editCancelButton,
+.editSaveButton {
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  min-height: 40px;
+  padding: 10px 12px;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+
+.editCancelButton {
+  background: transparent;
+  border: 1px solid #4a3c20;
+  color: #9a8a6a;
+}
+
+.editSaveButton {
+  background: #c49a2a;
+  border: 1px solid #c49a2a;
+  color: #111009;
+}
+
+.editCancelButton:hover,
+.editSaveButton:hover {
+  transform: translateY(-1px);
+}
+
+.editCancelButton:disabled,
+.editSaveButton:disabled {
+  cursor: wait;
+  opacity: 0.62;
+  transform: none;
+}
+
+.editError {
+  background: rgba(137, 54, 43, 0.16);
+  border: 1px solid rgba(220, 90, 70, 0.32);
+  border-radius: 8px;
+  color: #ffb6a8;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0;
+  padding: 9px 10px;
+}
+
+@keyframes detailEditIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media (max-width: 820px) {
@@ -180,6 +330,11 @@
   .footer {
     background: linear-gradient(to top, #111009 72%, rgba(17, 16, 9, 0));
     padding: 12px 18px max(14px, env(safe-area-inset-bottom));
+  }
+
+  .editGrid,
+  .editActions {
+    grid-template-columns: 1fr;
   }
 }
 
