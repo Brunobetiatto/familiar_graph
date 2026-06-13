@@ -6,6 +6,7 @@ import {
   normalizeAllowedRelationForTag,
   resolveGlobalTagSlug,
 } from '@/lib/global-tags-server';
+import { sanitizeRichText } from '@/lib/sanitize-rich-text';
 
 export async function POST(request: Request) {
   try {
@@ -46,7 +47,9 @@ export async function POST(request: Request) {
             name: node.name,
             gender: node.gender || null,
             birthDate: node.birthDate ? new Date(node.birthDate) : null,
+            deathDate: node.deathDate ? new Date(node.deathDate) : null,
             bio: node.bio || null,
+            photoUrl: node.photoUrl?.trim() || null,
             tagSlug,
             createdById: userId,
           }
@@ -96,6 +99,9 @@ export async function POST(request: Request) {
             toId,
             relation,
             description: edge.description?.trim() || null,
+            documentTitle: edge.documentTitle?.trim() || null,
+            documentContent: sanitizeRichText(edge.documentContent),
+            documentImageUrl: edge.documentImageUrl?.trim() || null,
             createdById: userId,
           });
         }
