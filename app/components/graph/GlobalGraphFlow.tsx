@@ -170,6 +170,7 @@ export default function GlobalGraphFlow({
   const tagTheme = activeTag.theme;
   const searchCloseTimerRef = useRef<number | null>(null);
   const initialFocusAppliedRef = useRef(false);
+  const pathMenuRef = useRef<HTMLDivElement>(null);
 
   const clearSearchCloseTimer = useCallback(() => {
     if (!searchCloseTimerRef.current) return;
@@ -375,6 +376,23 @@ export default function GlobalGraphFlow({
     pathToNode?.id,
     pathToQuery,
   ]);
+
+  useEffect(() => {
+    if (!isPathMenuOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (pathMenuRef.current?.contains(target)) return;
+
+      setIsPathMenuOpen(false);
+      setPathActiveField(null);
+      setPathSearchResults([]);
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [isPathMenuOpen]);
 
   const loadGraphAroundNode = useCallback(
     async (node: { id: string; name: string }) => {
@@ -1046,6 +1064,7 @@ export default function GlobalGraphFlow({
           </div>
 
           <div
+            ref={pathMenuRef}
             className={styles.pathMenuShell}
             style={
               {
