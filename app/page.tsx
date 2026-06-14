@@ -67,7 +67,7 @@ export default function HomePage() {
             Uma plataforma colaborativa para visualizar relacoes, registrar documentos de ligacao e expandir grafos tematicos com curadoria.
           </p>
           
-          <Link href="/graph-choice" className={styles.hoverBtn}>
+          <Link href="/global-graph" className={styles.hoverBtn}>
             Acessar a Plataforma
           </Link>
         </div>

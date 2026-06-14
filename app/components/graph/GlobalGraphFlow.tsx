@@ -108,6 +108,9 @@ type GraphWindowResponse = {
 const NODE_WIDTH = 200;
 const NODE_HEIGHT = 80;
 const GRAPH_MIN_ZOOM = 0.12;
+const CLEAN_EDGE_MAX_PER_NODE = 3;
+const CLEAN_EDGE_MAX_TOTAL = 150;
+const CLEAN_EDGE_ROOT_BONUS_LIMIT = 36;
 
 function getGraphFitPadding(nodeCount: number): number {
   if (nodeCount <= 1) return 0.42;
@@ -123,11 +126,112 @@ function getGraphFitMaxZoom(nodeCount: number): number {
   return 0.68;
 }
 
+function edgeHasDocument(edgeData?: EdgeData) {
+  return Boolean(
+    edgeData?.documentTitle ||
+      edgeData?.documentContent ||
+      edgeData?.documentImageUrl ||
+      edgeData?.description
+  );
+}
+
+function selectCleanGraphEdges({
+  edges,
+  nodesLength,
+  rootNodeId,
+  selectedNodeId,
+  selectedEdgeId,
+}: {
+  edges: Edge[];
+  nodesLength: number;
+  rootNodeId?: string | null;
+  selectedNodeId?: string | null;
+  selectedEdgeId?: string | null;
+}) {
+  if (edges.length <= CLEAN_EDGE_MAX_TOTAL && edges.length <= nodesLength * 2.2) {
+    return edges;
+  }
+
+  const selectedEdge = selectedEdgeId ? edges.find((edge) => edge.id === selectedEdgeId) : null;
+  const forcedEdges = new Map<string, Edge>();
+
+  edges.forEach((edge) => {
+    if (edge.id === selectedEdgeId) forcedEdges.set(edge.id, edge);
+    if (selectedNodeId && (edge.source === selectedNodeId || edge.target === selectedNodeId)) {
+      forcedEdges.set(edge.id, edge);
+    }
+  });
+
+  if (selectedEdge) forcedEdges.set(selectedEdge.id, selectedEdge);
+
+  const degreeByNodeId = new Map<string, number>();
+  const selectedEdges = new Map<string, Edge>(forcedEdges);
+
+  forcedEdges.forEach((edge) => {
+    degreeByNodeId.set(edge.source, (degreeByNodeId.get(edge.source) ?? 0) + 1);
+    degreeByNodeId.set(edge.target, (degreeByNodeId.get(edge.target) ?? 0) + 1);
+  });
+
+  const rootEdges = rootNodeId
+    ? edges
+        .filter(
+          (edge) =>
+            !selectedEdges.has(edge.id) &&
+            (edge.source === rootNodeId || edge.target === rootNodeId)
+        )
+        .sort((a, b) => {
+          const aData = a.data as EdgeData | undefined;
+          const bData = b.data as EdgeData | undefined;
+          const aScore = (edgeHasDocument(aData) ? 2 : 0) + (aData?.documentTitle ? 1 : 0);
+          const bScore = (edgeHasDocument(bData) ? 2 : 0) + (bData?.documentTitle ? 1 : 0);
+          return bScore - aScore || a.id.localeCompare(b.id);
+        })
+        .slice(0, CLEAN_EDGE_ROOT_BONUS_LIMIT)
+    : [];
+
+  rootEdges.forEach((edge) => {
+    selectedEdges.set(edge.id, edge);
+    degreeByNodeId.set(edge.source, (degreeByNodeId.get(edge.source) ?? 0) + 1);
+    degreeByNodeId.set(edge.target, (degreeByNodeId.get(edge.target) ?? 0) + 1);
+  });
+
+  const prioritizedEdges = edges
+    .filter((edge) => !selectedEdges.has(edge.id))
+    .map((edge) => {
+      const data = edge.data as EdgeData | undefined;
+      const touchesRoot = rootNodeId ? edge.source === rootNodeId || edge.target === rootNodeId : false;
+      const score =
+        (touchesRoot ? 80 : 0) +
+        (edgeHasDocument(data) ? 34 : 0) +
+        (data?.documentTitle ? 12 : 0) +
+        (data?.description ? 8 : 0);
+
+      return { edge, score };
+    })
+    .sort((a, b) => b.score - a.score || a.edge.id.localeCompare(b.edge.id));
+
+  for (const { edge } of prioritizedEdges) {
+    if (selectedEdges.size >= CLEAN_EDGE_MAX_TOTAL) break;
+
+    const sourceDegree = degreeByNodeId.get(edge.source) ?? 0;
+    const targetDegree = degreeByNodeId.get(edge.target) ?? 0;
+
+    if (sourceDegree >= CLEAN_EDGE_MAX_PER_NODE || targetDegree >= CLEAN_EDGE_MAX_PER_NODE) {
+      continue;
+    }
+
+    selectedEdges.set(edge.id, edge);
+    degreeByNodeId.set(edge.source, sourceDegree + 1);
+    degreeByNodeId.set(edge.target, targetDegree + 1);
+  }
+
+  return edges.filter((edge) => selectedEdges.has(edge.id));
+}
+
 export default function GlobalGraphFlow({
   initialNodes,
   initialEdges,
   initialRootNode = null,
-  graphLimit = 200,
   initialActiveTag,
   officialTags,
   initialFocusNodeId = null,
@@ -184,6 +288,21 @@ export default function GlobalGraphFlow({
     setIsSearchOpen(false);
     setIsSearchExpanded(false);
   }, [clearSearchCloseTimer]);
+
+  const updateGraphUrl = useCallback((tagSlug: string, nodeId?: string | null) => {
+    const url = new URL(window.location.href);
+    url.pathname = '/global-graph';
+    url.searchParams.set('tagSlug', tagSlug);
+    url.searchParams.delete('edgeId');
+
+    if (nodeId) {
+      url.searchParams.set('nodeId', nodeId);
+    } else {
+      url.searchParams.delete('nodeId');
+    }
+
+    window.history.replaceState(null, '', `${url.pathname}?${url.searchParams.toString()}`);
+  }, []);
 
   const scheduleSearchClose = useCallback(() => {
     clearSearchCloseTimer();
@@ -242,11 +361,19 @@ export default function GlobalGraphFlow({
       }
 
       try {
+        const layoutEdges = selectCleanGraphEdges({
+          edges: graphEdges,
+          nodesLength: graphNodes.length,
+          rootNodeId: nextRootNode?.id,
+          selectedNodeId,
+        });
         const { nodes: laidOutNodes, edges: laidOutEdges } = await applyElkLayout(
           graphNodes,
-          graphEdges,
+          layoutEdges,
           'TB'
         );
+        const layoutEdgeById = new Map(laidOutEdges.map((edge) => [edge.id, edge]));
+        const nextGraphEdges = graphEdges.map((edge) => layoutEdgeById.get(edge.id) ?? edge);
         const nextNodes = selectedNodeId
           ? laidOutNodes.map((node) => ({
               ...node,
@@ -255,7 +382,7 @@ export default function GlobalGraphFlow({
           : laidOutNodes;
 
         setNodes(nextNodes);
-        setEdges(laidOutEdges);
+        setEdges(nextGraphEdges);
         fitGraphContent(nextNodes, selectedNodeId ? 560 : 420);
 
         if (selectedNodeId) {
@@ -415,6 +542,7 @@ export default function GlobalGraphFlow({
 
         const graphWindow = (await res.json()) as GraphWindowResponse;
         setActiveTag(graphWindow.activeTag);
+        updateGraphUrl(graphWindow.activeTag.slug, node.id);
         await applyGraphWindow(graphWindow.nodes, graphWindow.edges, graphWindow.rootNode, node.id);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Erro ao carregar recorte do grafo.';
@@ -423,7 +551,7 @@ export default function GlobalGraphFlow({
         setIsGraphLoading(false);
       }
     },
-    [activeTag.slug, applyGraphWindow]
+    [activeTag.slug, applyGraphWindow, updateGraphUrl]
   );
 
   const loadGraphForTag = useCallback(
@@ -447,6 +575,7 @@ export default function GlobalGraphFlow({
 
         const graphWindow = (await res.json()) as GraphWindowResponse;
         setActiveTag(graphWindow.activeTag);
+        updateGraphUrl(graphWindow.activeTag.slug);
         await applyGraphWindow(graphWindow.nodes, graphWindow.edges, graphWindow.rootNode);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Erro ao carregar tema do grafo.';
@@ -455,14 +584,26 @@ export default function GlobalGraphFlow({
         setIsGraphLoading(false);
       }
     },
-    [applyGraphWindow]
+    [applyGraphWindow, updateGraphUrl]
+  );
+
+  const visibleEdges = useMemo(
+    () =>
+      selectCleanGraphEdges({
+        edges,
+        nodesLength: nodes.length,
+        rootNodeId: rootNode?.id,
+        selectedNodeId: selectedNodeData?.id,
+        selectedEdgeId,
+      }),
+    [edges, nodes.length, rootNode?.id, selectedEdgeId, selectedNodeData?.id]
   );
 
   const styledEdges = useMemo<Edge[]>(
     () =>
-      edges.map((e) => {
+      visibleEdges.map((e) => {
         const selected = e.id === selectedEdgeId;
-        const showLabel = edges.length <= 120 || selected;
+        const showLabel = visibleEdges.length <= 80 || selected;
 
         return {
           ...e,
@@ -491,7 +632,7 @@ export default function GlobalGraphFlow({
           labelBgBorderRadius: 4,
         };
       }),
-    [edges, selectedEdgeId, tagTheme.edge, tagTheme.edgeSelected, tagTheme.primary]
+    [selectedEdgeId, tagTheme.edge, tagTheme.edgeSelected, tagTheme.primary, visibleEdges]
   );
 
   const nodeNameById = useMemo(() => {
@@ -898,39 +1039,6 @@ export default function GlobalGraphFlow({
           >
             Grafo Global
           </h1>
-          {layoutReady && (
-            <div
-              className={styles.graphMeta}
-              style={
-                {
-                  '--graph-meta-muted': tagTheme.muted,
-                  '--graph-meta-primary': tagTheme.primary,
-                  '--graph-meta-border': tagTheme.border,
-                  '--graph-meta-surface': tagTheme.surface,
-                } as CSSProperties
-              }
-              aria-label="Resumo do recorte atual do grafo"
-            >
-              <span className={styles.graphMetaItem}>
-                <strong>{nodes.length}/{graphLimit}</strong>
-                <span>membros</span>
-              </span>
-              <span className={styles.graphMetaItem}>
-                <strong>{edges.length}</strong>
-                <span>conexoes</span>
-              </span>
-              {rootNode && (
-                <span className={`${styles.graphMetaItem} ${styles.graphMetaOrigin}`}>
-                  <span>origem</span>
-                  <strong title={rootNode.name}>{rootNode.name}</strong>
-                </span>
-              )}
-              <span className={`${styles.graphMetaItem} ${styles.graphMetaTheme}`}>
-                <span>tema</span>
-                <strong>{activeTag.label}</strong>
-              </span>
-            </div>
-          )}
         </div>
 
         <div className={styles.centerTools}>

@@ -46,7 +46,9 @@
 
 .graphTitleBlock {
   grid-area: title;
+  align-self: start;
   min-width: 0;
+  transform: translateY(-3px);
 }
 
 .graphTitle {
@@ -799,6 +801,10 @@
       "title actions"
       "search search";
     padding: 12px;
+  }
+
+  .graphTitleBlock {
+    transform: none;
   }
 
   .centerTools {

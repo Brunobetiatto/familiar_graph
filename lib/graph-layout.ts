@@ -36,26 +36,43 @@ export async function applyElkLayout(
   if (nodes.length === 0) return { nodes, edges };
 
   const isDenseGraph = nodes.length > 120 || edges.length > 320;
+  const nodeNodeSpacing = isDenseGraph ? 78 : 150;
+  const layerSpacing = isDenseGraph ? 135 : 240;
+  const edgeNodeSpacing = isDenseGraph ? 46 : 95;
+  const edgeEdgeSpacing = isDenseGraph ? 30 : 78;
+  const edgeNodeBetweenLayers = isDenseGraph ? 58 : 120;
+  const edgeEdgeBetweenLayers = isDenseGraph ? 42 : 90;
+  const componentSpacing = isDenseGraph ? 120 : 220;
 
   const elkGraph = {
     id: 'root',
     layoutOptions: {
       'elk.algorithm': 'layered',
       'elk.direction': direction === 'TB' ? 'DOWN' : 'RIGHT',
+      'elk.separateConnectedComponents': 'true',
+      'elk.spacing.componentComponent': String(componentSpacing),
       
       // ─── Roteamento de arestas ORTOGONAL (90°, sem diagonais) ───────────
       'elk.edgeRouting': isDenseGraph ? 'POLYLINE' : 'ORTHOGONAL',
       
       // ─── Evita que arestas passem por cima de nós ────────────────────────
+      'elk.layered.thoroughness': isDenseGraph ? '8' : '12',
+      'elk.layered.layering.strategy': 'NETWORK_SIMPLEX',
       'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
+      'elk.layered.nodePlacement.favorStraightEdges': 'true',
       'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+      'elk.layered.crossingMinimization.greedySwitch.activationThreshold': '0',
+      'elk.layered.crossingMinimization.greedySwitch.type': 'TWO_SIDED',
+      'elk.layered.unnecessaryBendpoints': 'true',
       
       // ─── Espaçamentos ────────────────────────────────────────────────────
-      'elk.spacing.nodeNode': isDenseGraph ? '58' : '120',
-      'elk.layered.spacing.nodeNodeBetweenLayers': isDenseGraph ? '105' : '200',
-      'elk.spacing.edgeNode': isDenseGraph ? '28' : '80',
-      'elk.spacing.edgeEdge': isDenseGraph ? '16' : '60',
-      'elk.padding': '[top=80, left=80, bottom=80, right=80]',
+      'elk.spacing.nodeNode': String(nodeNodeSpacing),
+      'elk.layered.spacing.nodeNodeBetweenLayers': String(layerSpacing),
+      'elk.spacing.edgeNode': String(edgeNodeSpacing),
+      'elk.spacing.edgeEdge': String(edgeEdgeSpacing),
+      'elk.layered.spacing.edgeNodeBetweenLayers': String(edgeNodeBetweenLayers),
+      'elk.layered.spacing.edgeEdgeBetweenLayers': String(edgeEdgeBetweenLayers),
+      'elk.padding': '[top=120, left=120, bottom=120, right=120]',
     },
     children: nodes.map((node) => ({
       id: node.id,

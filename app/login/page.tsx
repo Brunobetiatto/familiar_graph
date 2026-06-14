@@ -87,7 +87,7 @@ export default function LoginPage() {
       }
 
       if (isLoginMode) {
-        router.push('/graph-choice');
+        router.push('/global-graph');
         router.refresh();
       } else {
         setSuccessMsg('Conta criada. Agora faca login para continuar.');
