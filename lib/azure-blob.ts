@@ -76,3 +76,67 @@ export async function uploadNodeImage({ file, folder }: UploadImageOptions): Pro
 
   return publicUrl;
 }
+
+export function extractAzureBlobUrlsFromHtml(value?: string | null): string[] {
+  if (!value) return [];
+
+  const urls = new Set<string>();
+  const imageSrcPattern = /<img\b[^>]*\bsrc\s*=\s*(['"])(.*?)\1/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = imageSrcPattern.exec(value))) {
+    if (match[2]) urls.add(match[2]);
+  }
+
+  return [...urls];
+}
+
+function getBlobNameFromUrl(url: string): string | null {
+  const containerUrl = trimTrailingSlash(requireEnv('AZURE_BLOB_CONTAINER_URL'));
+  const publicBaseUrl = trimTrailingSlash(
+    process.env.AZURE_BLOB_PUBLIC_BASE_URL || containerUrl
+  );
+  const candidates = [publicBaseUrl, containerUrl];
+
+  for (const baseUrl of candidates) {
+    if (!url.startsWith(`${baseUrl}/`)) continue;
+
+    const rawBlobName = url.slice(baseUrl.length + 1).split('?')[0];
+    if (!rawBlobName) return null;
+
+    return rawBlobName
+      .split('/')
+      .map((segment) => encodeURIComponent(decodeURIComponent(segment)))
+      .join('/');
+  }
+
+  return null;
+}
+
+export async function deleteAzureBlobByUrl(url?: string | null): Promise<boolean> {
+  if (!url) return false;
+
+  const blobName = getBlobNameFromUrl(url);
+  if (!blobName) return false;
+
+  const containerUrl = trimTrailingSlash(requireEnv('AZURE_BLOB_CONTAINER_URL'));
+  const sasToken = normalizeSasToken(requireEnv('AZURE_BLOB_SAS_TOKEN'));
+  const deleteUrl = `${containerUrl}/${blobName}?${sasToken}`;
+
+  const response = await fetch(deleteUrl, {
+    method: 'DELETE',
+    headers: {
+      'x-ms-version': '2023-11-03',
+    },
+  });
+
+  if (response.status === 404) return true;
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Erro ao deletar blob no Azure:', response.status, errorText);
+    return false;
+  }
+
+  return true;
+}

@@ -71,7 +71,10 @@ export default function TagManager({ onTagsChange }: Props) {
   const [mode, setMode] = useState<'edit' | 'create'>('edit');
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [openPanels, setOpenPanels] = useState({ colors: false, relations: false });
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [deleteResult, setDeleteResult] = useState('');
+  const [openPanels, setOpenPanels] = useState({ colors: false, relations: false, danger: false });
 
   const selectedTag = useMemo(
     () => tags.find((tag) => tag.slug === selectedSlug) ?? tags[0],
@@ -85,6 +88,8 @@ export default function TagManager({ onTagsChange }: Props) {
   useEffect(() => {
     if (mode !== 'edit' || !selectedTag) return;
     setForm(createFormFromTag(selectedTag));
+    setDeleteConfirm('');
+    setDeleteResult('');
   }, [mode, selectedTag]);
 
   async function fetchTags() {
@@ -188,6 +193,46 @@ export default function TagManager({ onTagsChange }: Props) {
       setError(err instanceof Error ? err.message : 'Erro ao salvar tag.');
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleDeleteTag() {
+    if (!selectedTag || mode !== 'edit') return;
+    if (selectedTag.slug === DEFAULT_GLOBAL_TAG_SLUG) {
+      setError('A tag padrao nao pode ser deletada.');
+      return;
+    }
+    if (deleteConfirm !== selectedTag.slug) {
+      setError(`Digite "${selectedTag.slug}" para confirmar a exclusao.`);
+      return;
+    }
+
+    setIsDeleting(true);
+    setError('');
+    setDeleteResult('');
+
+    try {
+      const res = await fetch('/api/admin/global-tags', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: selectedTag.slug }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro ao deletar tag.');
+      }
+
+      await fetchTags();
+      setDeleteConfirm('');
+      setDeleteResult(
+        `Tag deletada: ${data.deletedNodes} nos, ${data.deletedEdges} ligacoes, ${data.deletedImages}/${data.imageUrls} imagens removidas.`
+      );
+      setMode('edit');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao deletar tag.');
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -371,7 +416,73 @@ export default function TagManager({ onTagsChange }: Props) {
             </div>
           </div>
 
+          {mode === 'edit' && selectedTag && (
+            <div className={`${styles.configPanel} ${openPanels.danger ? styles.configPanelOpen : ''}`}>
+              <button
+                type="button"
+                className={styles.configPanelSummary}
+                onClick={() => togglePanel('danger')}
+                aria-expanded={openPanels.danger}
+              >
+                <span>Zona de risco</span>
+                <small>Excluir tag e dados</small>
+              </button>
+
+              <div className={styles.configPanelBody}>
+                <div
+                  style={{
+                    background: 'rgba(255, 107, 107, 0.06)',
+                    border: '1px solid rgba(255, 107, 107, 0.2)',
+                    borderRadius: 8,
+                    padding: 12,
+                  }}
+                >
+                  <p style={{ color: '#f0b3ad', margin: 0, fontSize: 13, fontFamily: 'sans-serif', lineHeight: 1.55 }}>
+                    Esta acao deleta a tag <strong>{selectedTag.label}</strong>, todos os nos deste tema,
+                    ligacoes ligadas a estes nos, solicitacoes pendentes da tag e tenta remover as imagens
+                    relacionadas no Azure.
+                  </p>
+                  {selectedTag.slug === DEFAULT_GLOBAL_TAG_SLUG ? (
+                    <p style={{ color: '#8a7856', margin: '10px 0 0', fontSize: 12, fontFamily: 'sans-serif' }}>
+                      A tag padrao nao pode ser deletada.
+                    </p>
+                  ) : (
+                    <>
+                      <Field label={`Digite ${selectedTag.slug} para confirmar`}>
+                        <input
+                          value={deleteConfirm}
+                          onChange={(event) => setDeleteConfirm(event.target.value)}
+                          placeholder={selectedTag.slug}
+                          style={inputStyle}
+                        />
+                      </Field>
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteTag()}
+                        disabled={isDeleting || deleteConfirm !== selectedTag.slug}
+                        style={{
+                          width: '100%',
+                          marginTop: 12,
+                          padding: '10px 12px',
+                          background: deleteConfirm === selectedTag.slug && !isDeleting ? '#7f211b' : '#2a1815',
+                          color: deleteConfirm === selectedTag.slug && !isDeleting ? '#ffe5df' : '#8a5c56',
+                          border: '1px solid #5a241f',
+                          borderRadius: 7,
+                          cursor: deleteConfirm === selectedTag.slug && !isDeleting ? 'pointer' : 'not-allowed',
+                          fontWeight: 800,
+                        }}
+                      >
+                        {isDeleting ? 'Deletando tag...' : `Deletar ${selectedTag.label}`}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {error && <p style={{ color: '#ff6b6b', fontSize: 12, fontFamily: 'sans-serif' }}>{error}</p>}
+          {deleteResult && <p style={{ color: '#b9d08a', fontSize: 12, fontFamily: 'sans-serif' }}>{deleteResult}</p>}
 
           <button
             type="submit"

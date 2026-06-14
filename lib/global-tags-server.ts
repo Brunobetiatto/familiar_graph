@@ -19,6 +19,10 @@ import {
   type GlobalTag,
   type GlobalTagTheme,
 } from '@/lib/global-tags';
+import {
+  deleteAzureBlobByUrl,
+  extractAzureBlobUrlsFromHtml,
+} from '@/lib/azure-blob';
 
 export type GlobalTagInput = {
   slug?: string | null;
@@ -188,6 +192,168 @@ export async function updateGlobalTag(slug: string, input: GlobalTagInput): Prom
   });
 
   return formatDbGlobalTag(updated);
+}
+
+export type DeleteGlobalTagResult = {
+  slug: string;
+  deletedNodes: number;
+  deletedEdges: number;
+  deletedRequests: number;
+  imageUrls: number;
+  deletedImages: number;
+  failedImages: number;
+};
+
+function addImageUrl(urls: Set<string>, value?: string | null) {
+  if (value?.trim()) urls.add(value.trim());
+}
+
+function addHtmlImageUrls(urls: Set<string>, value?: string | null) {
+  extractAzureBlobUrlsFromHtml(value).forEach((url) => addImageUrl(urls, url));
+}
+
+async function deleteAzureImages(urls: string[]) {
+  const results = await Promise.allSettled(urls.map((url) => deleteAzureBlobByUrl(url)));
+  let deletedImages = 0;
+  let failedImages = 0;
+
+  results.forEach((result) => {
+    if (result.status === 'fulfilled' && result.value) {
+      deletedImages += 1;
+      return;
+    }
+
+    failedImages += 1;
+  });
+
+  return { deletedImages, failedImages };
+}
+
+export async function deleteGlobalTagWithContent(slug: string): Promise<DeleteGlobalTagResult> {
+  const normalizedSlug = normalizeGlobalTagSlug(slug);
+
+  if (normalizedSlug === DEFAULT_GLOBAL_TAG_SLUG) {
+    throw new Error('A tag padrao nao pode ser deletada.');
+  }
+
+  const imageUrls = new Set<string>();
+
+  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const taggedNodes = await tx.globalNode.findMany({
+      where: { tagSlug: normalizedSlug },
+      select: {
+        id: true,
+        photoUrl: true,
+        bio: true,
+      },
+    });
+    const nodeIds = taggedNodes.map((node) => node.id);
+
+    taggedNodes.forEach((node) => {
+      addImageUrl(imageUrls, node.photoUrl);
+      addHtmlImageUrls(imageUrls, node.bio);
+    });
+
+    const globalEdges = nodeIds.length
+      ? await tx.globalEdge.findMany({
+          where: {
+            OR: [{ fromId: { in: nodeIds } }, { toId: { in: nodeIds } }],
+          },
+          select: {
+            id: true,
+            documentImageUrl: true,
+            documentContent: true,
+          },
+        })
+      : [];
+
+    globalEdges.forEach((edge) => {
+      addImageUrl(imageUrls, edge.documentImageUrl);
+      addHtmlImageUrls(imageUrls, edge.documentContent);
+    });
+
+    const taggedRequests = await tx.nodeRequest.findMany({
+      where: { nodeTagSlug: normalizedSlug },
+      select: {
+        id: true,
+        nodePhotoUrl: true,
+        nodeBio: true,
+        connections: {
+          select: {
+            documentImageUrl: true,
+            documentContent: true,
+          },
+        },
+      },
+    });
+    const taggedRequestIds = taggedRequests.map((request) => request.id);
+
+    taggedRequests.forEach((request) => {
+      addImageUrl(imageUrls, request.nodePhotoUrl);
+      addHtmlImageUrls(imageUrls, request.nodeBio);
+      request.connections.forEach((connection) => {
+        addImageUrl(imageUrls, connection.documentImageUrl);
+        addHtmlImageUrls(imageUrls, connection.documentContent);
+      });
+    });
+
+    const danglingRequestConnections = nodeIds.length
+      ? await tx.nodeRequestConn.findMany({
+          where: { globalNodeId: { in: nodeIds } },
+          select: {
+            documentImageUrl: true,
+            documentContent: true,
+          },
+        })
+      : [];
+
+    danglingRequestConnections.forEach((connection) => {
+      addImageUrl(imageUrls, connection.documentImageUrl);
+      addHtmlImageUrls(imageUrls, connection.documentContent);
+    });
+
+    if (taggedRequestIds.length > 0) {
+      await tx.nodeRequestConn.deleteMany({ where: { requestId: { in: taggedRequestIds } } });
+    }
+
+    if (nodeIds.length > 0) {
+      await tx.nodeRequestConn.deleteMany({ where: { globalNodeId: { in: nodeIds } } });
+    }
+
+    const deletedEdges = nodeIds.length
+      ? await tx.globalEdge.deleteMany({
+          where: {
+            OR: [{ fromId: { in: nodeIds } }, { toId: { in: nodeIds } }],
+          },
+        })
+      : { count: 0 };
+
+    const deletedRequests = await tx.nodeRequest.deleteMany({
+      where: { nodeTagSlug: normalizedSlug },
+    });
+
+    const deletedNodes = await tx.globalNode.deleteMany({
+      where: { tagSlug: normalizedSlug },
+    });
+
+    await tx.globalTagRelation.deleteMany({ where: { tagSlug: normalizedSlug } });
+    await tx.globalTag.deleteMany({ where: { slug: normalizedSlug } });
+
+    return {
+      deletedEdges: deletedEdges.count,
+      deletedNodes: deletedNodes.count,
+      deletedRequests: deletedRequests.count,
+    };
+  });
+
+  const azureResult = await deleteAzureImages([...imageUrls]);
+
+  return {
+    slug: normalizedSlug,
+    ...result,
+    imageUrls: imageUrls.size,
+    ...azureResult,
+  };
 }
 
 export async function getRelationsForTag(slug?: string | null): Promise<GlobalTagRelation[]> {

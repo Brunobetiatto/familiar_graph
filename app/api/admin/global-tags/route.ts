@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import {
   createGlobalTag,
+  deleteGlobalTagWithContent,
   listGlobalTags,
   updateGlobalTag,
   type GlobalTagInput,
@@ -68,6 +69,26 @@ export async function PATCH(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erro interno ao atualizar tag.';
     console.error('Erro ao atualizar tag:', error);
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    if (!(await requireAdmin())) {
+      return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 });
+    }
+
+    const body = (await request.json()) as { slug?: string };
+    if (!body.slug) {
+      return NextResponse.json({ error: 'Slug e obrigatorio.' }, { status: 400 });
+    }
+
+    const result = await deleteGlobalTagWithContent(body.slug);
+    return NextResponse.json(result, { status: 200 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Erro interno ao deletar tag.';
+    console.error('Erro ao deletar tag:', error);
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
