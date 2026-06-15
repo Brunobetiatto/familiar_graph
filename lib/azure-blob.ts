@@ -11,12 +11,14 @@ type AzureBlobErrorKind = 'configuration' | 'validation' | 'network' | 'storage'
 export class AzureBlobError extends Error {
   kind: AzureBlobErrorKind;
   status: number;
+  details?: string;
 
-  constructor(message: string, kind: AzureBlobErrorKind, status: number) {
+  constructor(message: string, kind: AzureBlobErrorKind, status: number, details?: string) {
     super(message);
     this.name = 'AzureBlobError';
     this.kind = kind;
     this.status = status;
+    this.details = details;
   }
 }
 
@@ -51,6 +53,21 @@ function buildBlobName(folder: UploadImageOptions['folder'], extension: string):
   const month = String(today.getUTCMonth() + 1).padStart(2, '0');
 
   return `${folder}/${year}/${month}/${crypto.randomUUID()}.${extension}`;
+}
+
+function readAzureErrorCode(errorText: string): string | null {
+  const match = /<Code>(.*?)<\/Code>/i.exec(errorText);
+  return match?.[1] ?? null;
+}
+
+function getStorageTargetLabel(containerUrl: string) {
+  try {
+    const url = new URL(containerUrl);
+    const container = url.pathname.split('/').filter(Boolean).at(-1) ?? 'container';
+    return `${url.hostname}/${container}`;
+  } catch {
+    return 'Azure Blob Storage';
+  }
 }
 
 export async function uploadNodeImage({ file, folder }: UploadImageOptions): Promise<string | null> {
@@ -107,11 +124,26 @@ export async function uploadNodeImage({ file, folder }: UploadImageOptions): Pro
 
   if (!uploadResponse.ok) {
     const errorText = await uploadResponse.text();
-    console.error('Erro no upload para Azure Blob:', uploadResponse.status, errorText);
+    const azureErrorCode =
+      uploadResponse.headers.get('x-ms-error-code') ?? readAzureErrorCode(errorText);
+    const target = getStorageTargetLabel(containerUrl);
+
+    console.error('Erro no upload para Azure Blob:', {
+      status: uploadResponse.status,
+      azureErrorCode,
+      target,
+      body: errorText,
+    });
+
+    const details = azureErrorCode
+      ? `Azure Blob retornou ${uploadResponse.status} (${azureErrorCode}) em ${target}.`
+      : `Azure Blob retornou ${uploadResponse.status} em ${target}.`;
+
     throw new AzureBlobError(
-      'Falha ao enviar imagem para o armazenamento.',
+      `Falha ao enviar imagem para o armazenamento. ${details}`,
       'storage',
-      502
+      502,
+      details
     );
   }
 
