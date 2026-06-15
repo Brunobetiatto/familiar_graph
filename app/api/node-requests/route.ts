@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
-import { uploadNodeImage } from '@/lib/azure-blob';
+import { AzureBlobError, uploadNodeImage } from '@/lib/azure-blob';
 import { sanitizeRichText } from '@/lib/sanitize-rich-text';
 import {
   normalizeAllowedRelationsForTag,
@@ -237,6 +237,10 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error("Erro ao criar requisição de nó:", error);
+    if (error instanceof AzureBlobError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+
     return NextResponse.json(
       { error: 'Erro interno ao salvar a solicitação.' },
       { status: 500 }

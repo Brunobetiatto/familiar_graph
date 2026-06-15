@@ -12,6 +12,7 @@ import {
   DEFAULT_GLOBAL_RELATIONS,
   type GlobalTagRelation,
 } from '@/lib/global-relations';
+import { getImageFileValidationError } from '@/lib/image-validation';
 
 type Connection = {
   targetNodeId: string;
@@ -157,6 +158,34 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
     setConnections((prev) =>
       prev.map((c) => (c.targetNodeId === id ? { ...c, [field]: value } : c))
     );
+  };
+
+  const updatePhotoFile = (file: File | null) => {
+    const validationError = getImageFileValidationError(file);
+
+    if (validationError) {
+      setPhotoFile(null);
+      setError(validationError);
+      return false;
+    }
+
+    setPhotoFile(file);
+    setError('');
+    return true;
+  };
+
+  const updateConnectionDocumentImage = (connectionId: string, file: File | null) => {
+    const validationError = getImageFileValidationError(file);
+
+    if (validationError) {
+      updateConnection(connectionId, 'documentImage', null);
+      setError(validationError);
+      return false;
+    }
+
+    updateConnection(connectionId, 'documentImage', file);
+    setError('');
+    return true;
   };
 
   async function handleSubmit(e: React.FormEvent) {
@@ -327,10 +356,13 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <Label>Foto do no</Label>
-                <Input
+                  <Input
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
-                  onChange={(e: any) => setPhotoFile(e.target.files?.[0] ?? null)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    const accepted = updatePhotoFile(e.target.files?.[0] ?? null);
+                    if (!accepted) e.currentTarget.value = '';
+                  }}
                 />
               </div>
               {photoFile && (
@@ -452,7 +484,13 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
                     <Input
                       type="file"
                       accept="image/jpeg,image/png,image/webp"
-                      onChange={(e: any) => updateConnection(conn.targetNodeId, 'documentImage', e.target.files?.[0] ?? null)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                        const accepted = updateConnectionDocumentImage(
+                          conn.targetNodeId,
+                          e.target.files?.[0] ?? null
+                        );
+                        if (!accepted) e.currentTarget.value = '';
+                      }}
                     />
                     {conn.documentImage && (
                       <button

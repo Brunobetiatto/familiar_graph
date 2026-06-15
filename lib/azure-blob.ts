@@ -6,6 +6,20 @@ const ALLOWED_IMAGE_TYPES = new Map([
   ['image/webp', 'webp'],
 ]);
 
+type AzureBlobErrorKind = 'configuration' | 'validation' | 'network' | 'storage';
+
+export class AzureBlobError extends Error {
+  kind: AzureBlobErrorKind;
+  status: number;
+
+  constructor(message: string, kind: AzureBlobErrorKind, status: number) {
+    super(message);
+    this.name = 'AzureBlobError';
+    this.kind = kind;
+    this.status = status;
+  }
+}
+
 export type UploadImageOptions = {
   file: File | null;
   folder: 'global-nodes' | 'node-requests' | 'private-nodes' | 'edge-documents';
@@ -22,7 +36,11 @@ function normalizeSasToken(value: string): string {
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
-    throw new Error(`Variavel de ambiente obrigatoria ausente: ${name}`);
+    throw new AzureBlobError(
+      `Armazenamento de imagens nao configurado. Variavel ausente: ${name}.`,
+      'configuration',
+      503
+    );
   }
   return value;
 }
@@ -40,11 +58,19 @@ export async function uploadNodeImage({ file, folder }: UploadImageOptions): Pro
 
   const extension = ALLOWED_IMAGE_TYPES.get(file.type);
   if (!extension) {
-    throw new Error('Formato de imagem invalido. Use JPG, PNG ou WebP.');
+    throw new AzureBlobError(
+      'Formato de imagem invalido. Use JPG, PNG ou WebP.',
+      'validation',
+      400
+    );
   }
 
   if (file.size > MAX_IMAGE_SIZE_BYTES) {
-    throw new Error('Imagem muito grande. O limite e 5 MB.');
+    throw new AzureBlobError(
+      'Imagem muito grande. O limite e 5 MB.',
+      'validation',
+      400
+    );
   }
 
   const containerUrl = trimTrailingSlash(requireEnv('AZURE_BLOB_CONTAINER_URL'));
@@ -58,20 +84,35 @@ export async function uploadNodeImage({ file, folder }: UploadImageOptions): Pro
   const publicUrl = `${publicBaseUrl}/${blobName}`;
   const body = Buffer.from(await file.arrayBuffer());
 
-  const uploadResponse = await fetch(uploadUrl, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': file.type,
-      'x-ms-blob-type': 'BlockBlob',
-      'x-ms-version': '2023-11-03',
-    },
-    body,
-  });
+  let uploadResponse: Response;
+
+  try {
+    uploadResponse = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': file.type,
+        'x-ms-blob-type': 'BlockBlob',
+        'x-ms-version': '2023-11-03',
+      },
+      body,
+    });
+  } catch (error) {
+    console.error('Erro de conexao no upload para Azure Blob:', error);
+    throw new AzureBlobError(
+      'Nao foi possivel conectar ao armazenamento de imagens.',
+      'network',
+      502
+    );
+  }
 
   if (!uploadResponse.ok) {
     const errorText = await uploadResponse.text();
     console.error('Erro no upload para Azure Blob:', uploadResponse.status, errorText);
-    throw new Error('Falha ao enviar imagem para o armazenamento.');
+    throw new AzureBlobError(
+      'Falha ao enviar imagem para o armazenamento.',
+      'storage',
+      502
+    );
   }
 
   return publicUrl;

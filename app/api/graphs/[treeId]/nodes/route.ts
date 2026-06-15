@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/current-user';
-import { uploadNodeImage } from '@/lib/azure-blob';
+import { AzureBlobError, uploadNodeImage } from '@/lib/azure-blob';
 
 type RouteParams = {
   params: Promise<{ treeId: string }>;
@@ -88,6 +88,10 @@ export async function POST(request: Request, { params }: RouteParams) {
     return NextResponse.json(node, { status: 201 });
   } catch (error: unknown) {
     console.error('Erro ao criar nó privado:', error);
+    if (error instanceof AzureBlobError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+
     return NextResponse.json({ error: getErrorMessage(error, 'Erro interno ao criar nó.') }, { status: 500 });
   }
 }

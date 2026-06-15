@@ -12,6 +12,7 @@ import {
   DEFAULT_GLOBAL_RELATIONS,
   type GlobalTagRelation,
 } from '@/lib/global-relations';
+import { getImageFileValidationError } from '@/lib/image-validation';
 
 type Gender = 'MALE' | 'FEMALE' | 'OTHER' | '';
 
@@ -215,6 +216,34 @@ export default function RequestNodeModal({
     setConnections((prev) =>
       prev.map((conn) => (conn.targetNodeId === id ? { ...conn, [field]: value } : conn))
     );
+  };
+
+  const updatePhotoFile = (file: File | null) => {
+    const validationError = getImageFileValidationError(file);
+
+    if (validationError) {
+      setPhotoFile(null);
+      setError(validationError);
+      return false;
+    }
+
+    setPhotoFile(file);
+    setError('');
+    return true;
+  };
+
+  const updateConnectionDocumentImage = (connectionId: string, file: File | null) => {
+    const validationError = getImageFileValidationError(file);
+
+    if (validationError) {
+      updateConnection(connectionId, 'documentImage', null);
+      setError(validationError);
+      return false;
+    }
+
+    updateConnection(connectionId, 'documentImage', file);
+    setError('');
+    return true;
   };
 
   async function handleSubmit(e: React.FormEvent) {
@@ -529,7 +558,10 @@ export default function RequestNodeModal({
                   <Input
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
-                    onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
+                    onChange={(e) => {
+                      const accepted = updatePhotoFile(e.target.files?.[0] ?? null);
+                      if (!accepted) e.currentTarget.value = '';
+                    }}
                   />
                 </div>
                 {photoFile && (
@@ -734,13 +766,13 @@ export default function RequestNodeModal({
                       <Input
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
-                        onChange={(e) =>
-                          updateConnection(
+                        onChange={(e) => {
+                          const accepted = updateConnectionDocumentImage(
                             conn.targetNodeId,
-                            'documentImage',
                             e.target.files?.[0] ?? null
-                          )
-                        }
+                          );
+                          if (!accepted) e.currentTarget.value = '';
+                        }}
                       />
                       {conn.documentImage && (
                         <button

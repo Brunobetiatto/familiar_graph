@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { getImageFileValidationError } from '@/lib/image-validation';
 
 export type RichTextImageAsset = {
   key: string;
@@ -98,6 +99,7 @@ export default function RichTextEditor({
   const [mentionRange, setMentionRange] = useState<{ index: number; length: number } | null>(null);
   const [mentionResults, setMentionResults] = useState<CitationSearchItem[]>([]);
   const [isMentionLoading, setIsMentionLoading] = useState(false);
+  const [imageError, setImageError] = useState('');
 
   useEffect(() => {
     latestValueRef.current = value;
@@ -282,6 +284,14 @@ export default function RichTextEditor({
   const insertImage = async (file: File) => {
     const quill = quillRef.current;
     if (!quill || !allowImages) return;
+
+    const validationError = getImageFileValidationError(file);
+    if (validationError) {
+      setImageError(validationError);
+      return;
+    }
+
+    setImageError('');
 
     const key = crypto.randomUUID();
     const previewUrl = await readFileAsDataUrl(file);
@@ -584,6 +594,8 @@ export default function RichTextEditor({
           </div>
         </div>
       )}
+
+      {imageError && <p className="rich-text-image-error">{imageError}</p>}
 
       {mentionRange && (mentionResults.length > 0 || isMentionLoading) && (
         <div className="rich-text-mention-panel">
