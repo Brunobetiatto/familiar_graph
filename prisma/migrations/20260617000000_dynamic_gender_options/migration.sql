@@ -1,0 +1,62 @@
+ALTER TABLE "PERSON_NODE"
+ALTER COLUMN "gender" TYPE TEXT USING "gender"::TEXT;
+
+ALTER TABLE "NODE_REQUEST"
+ALTER COLUMN "nodeGender" TYPE TEXT USING "nodeGender"::TEXT;
+
+ALTER TABLE "GLOBAL_NODE"
+ALTER COLUMN "gender" TYPE TEXT USING "gender"::TEXT;
+
+CREATE TABLE "GLOBAL_TAG_GENDER_OPTION" (
+  "id" TEXT NOT NULL,
+  "tagSlug" TEXT NOT NULL,
+  "key" TEXT NOT NULL,
+  "label" TEXT NOT NULL,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL,
+
+  CONSTRAINT "GLOBAL_TAG_GENDER_OPTION_pkey" PRIMARY KEY ("id")
+);
+
+INSERT INTO "GLOBAL_TAG_GENDER_OPTION" ("id", "tagSlug", "key", "label", "updatedAt")
+SELECT
+  concat('gender-option-', "slug", '-male'),
+  "slug",
+  'MALE',
+  "maleLabel",
+  CURRENT_TIMESTAMP
+FROM "GLOBAL_TAG"
+ON CONFLICT DO NOTHING;
+
+INSERT INTO "GLOBAL_TAG_GENDER_OPTION" ("id", "tagSlug", "key", "label", "updatedAt")
+SELECT
+  concat('gender-option-', "slug", '-female'),
+  "slug",
+  'FEMALE',
+  "femaleLabel",
+  CURRENT_TIMESTAMP
+FROM "GLOBAL_TAG"
+ON CONFLICT DO NOTHING;
+
+INSERT INTO "GLOBAL_TAG_GENDER_OPTION" ("id", "tagSlug", "key", "label", "updatedAt")
+SELECT
+  concat('gender-option-', "slug", '-other'),
+  "slug",
+  'OTHER',
+  "otherLabel",
+  CURRENT_TIMESTAMP
+FROM "GLOBAL_TAG"
+ON CONFLICT DO NOTHING;
+
+CREATE UNIQUE INDEX "GLOBAL_TAG_GENDER_OPTION_tagSlug_key_key"
+ON "GLOBAL_TAG_GENDER_OPTION"("tagSlug", "key");
+
+CREATE INDEX "GLOBAL_TAG_GENDER_OPTION_tagSlug_idx"
+ON "GLOBAL_TAG_GENDER_OPTION"("tagSlug");
+
+ALTER TABLE "GLOBAL_TAG_GENDER_OPTION"
+ADD CONSTRAINT "GLOBAL_TAG_GENDER_OPTION_tagSlug_fkey"
+FOREIGN KEY ("tagSlug") REFERENCES "GLOBAL_TAG"("slug")
+ON DELETE CASCADE ON UPDATE CASCADE;
+
+DROP TYPE IF EXISTS "Gender";

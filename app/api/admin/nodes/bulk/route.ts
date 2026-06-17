@@ -80,8 +80,8 @@ function linkCitationMentions(value: string | null | undefined, targets: Citatio
 }
 
 function parseGender(value?: string | null) {
-  if (value === 'MALE' || value === 'FEMALE' || value === 'OTHER') return value;
-  return null;
+  const trimmed = value?.trim();
+  return trimmed ? trimmed.slice(0, 40) : null;
 }
 
 export async function POST(request: Request) {

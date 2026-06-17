@@ -6,7 +6,12 @@ import RichTextViewer from '@/app/components/RichTextViewer';
 import DirectNodeModal from './components/DirectNodeModal'; // 1. IMPORT AQUI NO TOPO
 import TagManager from './components/TagManager';
 import { findRelationLabel } from '@/lib/global-relations';
-import { OFFICIAL_GLOBAL_TAGS, getGlobalTag, type GlobalTag } from '@/lib/global-tags';
+import {
+  OFFICIAL_GLOBAL_TAGS,
+  findGenderOptionLabel,
+  getGlobalTag,
+  type GlobalTag,
+} from '@/lib/global-tags';
 import { getPasswordErrors } from '@/lib/auth-security';
 import styles from './admin.module.css';
 
@@ -169,12 +174,8 @@ export default function AdminDashboard() {
     return date.toLocaleDateString('pt-BR');
   };
 
-  const formatGender = (value: string | null) => {
-    if (!value) return null;
-    if (value === 'MALE') return 'Masculino';
-    if (value === 'FEMALE') return 'Feminino';
-    if (value === 'OTHER') return 'Outro';
-    return value;
+  const formatGender = (value: string | null, tag: GlobalTag) => {
+    return findGenderOptionLabel(tag.genderOptions, value);
   };
   const adminPasswordErrors = adminForm.password ? getPasswordErrors(adminForm.password) : [];
 
@@ -411,19 +412,19 @@ export default function AdminDashboard() {
                     <div style={{ marginTop: 20, background: '#181410', borderRadius: 8, border: '1px solid #2a2218', padding: 16 }}>
                       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                         <div style={{ flex: '1 1 200px' }}>
-                          <span style={{ color: '#5a4e38', fontSize: 10, textTransform: 'uppercase' }}>Genero</span>
+                          <span style={{ color: '#5a4e38', fontSize: 10, textTransform: 'uppercase' }}>{tag.fieldLabels.gender}</span>
                           <p style={{ color: '#c8b898', margin: '4px 0 0', fontFamily: 'sans-serif' }}>
-                            {formatGender(req.nodeGender) || 'Nao informado'}
+                            {formatGender(req.nodeGender, tag) || 'Nao informado'}
                           </p>
                         </div>
                         <div style={{ flex: '1 1 200px' }}>
-                          <span style={{ color: '#5a4e38', fontSize: 10, textTransform: 'uppercase' }}>Nascimento</span>
+                          <span style={{ color: '#5a4e38', fontSize: 10, textTransform: 'uppercase' }}>{tag.fieldLabels.birthDate}</span>
                           <p style={{ color: '#c8b898', margin: '4px 0 0', fontFamily: 'sans-serif' }}>
                             {formatDate(req.nodeBirthDate) || 'Nao informado'}
                           </p>
                         </div>
                         <div style={{ flex: '1 1 200px' }}>
-                          <span style={{ color: '#5a4e38', fontSize: 10, textTransform: 'uppercase' }}>Falecimento</span>
+                          <span style={{ color: '#5a4e38', fontSize: 10, textTransform: 'uppercase' }}>{tag.fieldLabels.deathDate}</span>
                           <p style={{ color: '#c8b898', margin: '4px 0 0', fontFamily: 'sans-serif' }}>
                             {formatDate(req.nodeDeathDate) || 'Nao informado'}
                           </p>
@@ -451,7 +452,7 @@ export default function AdminDashboard() {
                       </div>
 
                       <div style={{ marginTop: 16 }}>
-                        <span style={{ color: '#5a4e38', fontSize: 10, textTransform: 'uppercase' }}>Biografia</span>
+                        <span style={{ color: '#5a4e38', fontSize: 10, textTransform: 'uppercase' }}>{tag.fieldLabels.bio}</span>
                         {req.nodeBio ? (
                           <div style={{ color: '#c8b898', margin: '6px 0 0', fontFamily: 'sans-serif', fontSize: 13 }}>
                             <RichTextViewer value={req.nodeBio} />

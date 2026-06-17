@@ -4,8 +4,12 @@ import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type 
 import {
   DEFAULT_GLOBAL_TAG_SLUG,
   OFFICIAL_GLOBAL_TAGS,
+  normalizeGenderOptionKey,
+  normalizeGlobalTagGenderOptions,
   slugifyGlobalTag,
   type GlobalTag,
+  type GlobalTagFieldLabels,
+  type GlobalTagGenderOption,
   type GlobalTagTheme,
 } from '@/lib/global-tags';
 import {
@@ -25,6 +29,8 @@ type TagForm = {
   label: string;
   description: string;
   theme: GlobalTagTheme;
+  fieldLabels: GlobalTagFieldLabels;
+  genderOptions: GlobalTagGenderOption[];
   relations: GlobalTagRelation[];
 };
 
@@ -48,6 +54,8 @@ function createFormFromTag(tag: GlobalTag): TagForm {
     label: tag.label,
     description: tag.description,
     theme: { ...tag.theme },
+    fieldLabels: { ...tag.fieldLabels },
+    genderOptions: tag.genderOptions.map((option) => ({ ...option })),
     relations: tag.relations.map((relation) => ({ ...relation })),
   };
 }
@@ -60,6 +68,8 @@ function createBlankForm(): TagForm {
     label: '',
     description: '',
     theme: { ...base.theme },
+    fieldLabels: { ...base.fieldLabels },
+    genderOptions: base.genderOptions.map((option) => ({ ...option })),
     relations: base.relations.map((relation) => ({ ...relation })),
   };
 }
@@ -74,7 +84,12 @@ export default function TagManager({ onTagsChange }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleteResult, setDeleteResult] = useState('');
-  const [openPanels, setOpenPanels] = useState({ colors: false, relations: false, danger: false });
+  const [openPanels, setOpenPanels] = useState({
+    fields: false,
+    colors: false,
+    relations: false,
+    danger: false,
+  });
 
   const selectedTag = useMemo(
     () => tags.find((tag) => tag.slug === selectedSlug) ?? tags[0],
@@ -114,6 +129,54 @@ export default function TagManager({ onTagsChange }: Props) {
         [key]: value,
       },
     }));
+  }
+
+  function updateFieldLabel(key: keyof GlobalTagFieldLabels, value: string) {
+    setForm((current) => ({
+      ...current,
+      fieldLabels: {
+        ...current.fieldLabels,
+        [key]: value,
+      },
+    }));
+  }
+
+  function addGenderOption() {
+    setForm((current) => ({
+      ...current,
+      genderOptions: [...current.genderOptions, { key: '', label: '' }],
+    }));
+  }
+
+  function updateGenderOption(index: number, field: keyof GlobalTagGenderOption, value: string) {
+    setForm((current) => ({
+      ...current,
+      genderOptions: current.genderOptions.map((option, optionIndex) => {
+        if (optionIndex !== index) return option;
+
+        if (field === 'key') {
+          return { ...option, key: normalizeGenderOptionKey(value) };
+        }
+
+        return {
+          ...option,
+          label: value,
+          key: option.key || normalizeGenderOptionKey(value),
+        };
+      }),
+    }));
+  }
+
+  function removeGenderOption(index: number) {
+    setForm((current) => {
+      const nextOptions = current.genderOptions.filter((_, optionIndex) => optionIndex !== index);
+
+      return {
+        ...current,
+        genderOptions:
+          nextOptions.length > 0 ? nextOptions : [{ key: 'OTHER', label: 'Outro' }],
+      };
+    });
   }
 
   function addRelation() {
@@ -172,6 +235,8 @@ export default function TagManager({ onTagsChange }: Props) {
         label: form.label,
         description: form.description,
         theme: form.theme,
+        fieldLabels: form.fieldLabels,
+        genderOptions: normalizeGlobalTagGenderOptions(form.genderOptions),
         relations: normalizeTagRelations(form.relations),
       };
       const res = await fetch('/api/admin/global-tags', {
@@ -330,6 +395,94 @@ export default function TagManager({ onTagsChange }: Props) {
             <div style={{ marginTop: 10, height: 3, borderRadius: 99, background: form.theme.primary }} />
           </div>
 
+          <div className={`${styles.configPanel} ${openPanels.fields ? styles.configPanelOpen : ''}`}>
+            <button
+              type="button"
+              className={styles.configPanelSummary}
+              onClick={() => togglePanel('fields')}
+              aria-expanded={openPanels.fields}
+            >
+              <span>Campos do no</span>
+              <small>Rotulos por tema</small>
+            </button>
+
+            <div className={styles.configPanelBody}>
+              <p style={{ color: '#8a7856', margin: '0 0 10px', fontSize: 12, fontFamily: 'sans-serif', lineHeight: 1.5 }}>
+                Renomeie os campos para este tema. Os dados continuam usando a mesma estrutura no banco,
+                mas a interface mostra os nomes abaixo.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: 10 }}>
+                <Field label="Campo de genero/tipo">
+                  <input
+                    value={form.fieldLabels.gender}
+                    onChange={(event) => updateFieldLabel('gender', event.target.value)}
+                    style={{ ...inputStyle, padding: '8px 9px', fontSize: 12 }}
+                  />
+                </Field>
+                <Field label="Campo de nascimento/inicio">
+                  <input
+                    value={form.fieldLabels.birthDate}
+                    onChange={(event) => updateFieldLabel('birthDate', event.target.value)}
+                    style={{ ...inputStyle, padding: '8px 9px', fontSize: 12 }}
+                  />
+                </Field>
+                <Field label="Campo de falecimento/fim">
+                  <input
+                    value={form.fieldLabels.deathDate}
+                    onChange={(event) => updateFieldLabel('deathDate', event.target.value)}
+                    style={{ ...inputStyle, padding: '8px 9px', fontSize: 12 }}
+                  />
+                </Field>
+                <Field label="Campo de biografia">
+                  <input
+                    value={form.fieldLabels.bio}
+                    onChange={(event) => updateFieldLabel('bio', event.target.value)}
+                    style={{ ...inputStyle, padding: '8px 9px', fontSize: 12 }}
+                  />
+                </Field>
+              </div>
+
+              <div className={styles.relationHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, margin: '14px 0 10px' }}>
+                <p style={{ color: '#8a7856', margin: 0, fontSize: 12, fontFamily: 'sans-serif' }}>
+                  Defina as opcoes disponiveis para este campo.
+                </p>
+                <button
+                  type="button"
+                  onClick={addGenderOption}
+                  style={{ padding: '8px 10px', background: '#231d16', color: '#f0e6d3', border: '1px solid #3a3020', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}
+                >
+                  Adicionar
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {form.genderOptions.map((option, index) => (
+                  <div key={`gender-option-${index}`} className={styles.relationRow} style={{ display: 'grid', gridTemplateColumns: '0.85fr 1fr auto', gap: 8, alignItems: 'center' }}>
+                    <input
+                      value={option.key}
+                      onChange={(event) => updateGenderOption(index, 'key', event.target.value)}
+                      placeholder="CHAVE_TECNICA"
+                      style={{ ...inputStyle, padding: '8px 9px', fontSize: 12 }}
+                    />
+                    <input
+                      value={option.label}
+                      onChange={(event) => updateGenderOption(index, 'label', event.target.value)}
+                      placeholder="Rotulo visivel"
+                      style={{ ...inputStyle, padding: '8px 9px', fontSize: 12 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeGenderOption(index)}
+                      style={{ height: 34, padding: '0 10px', background: 'transparent', color: '#ff6b6b', border: '1px solid #4a241e', borderRadius: 6, cursor: 'pointer' }}
+                    >
+                      Remover
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
           <div className={`${styles.configPanel} ${openPanels.colors ? styles.configPanelOpen : ''}`}>
             <button
               type="button"
@@ -390,7 +543,7 @@ export default function TagManager({ onTagsChange }: Props) {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {form.relations.map((relation, index) => (
-                  <div key={`${index}-${relation.key}`} className={styles.relationRow} style={{ display: 'grid', gridTemplateColumns: '0.85fr 1fr auto', gap: 8, alignItems: 'center' }}>
+                  <div key={`relation-${index}`} className={styles.relationRow} style={{ display: 'grid', gridTemplateColumns: '0.85fr 1fr auto', gap: 8, alignItems: 'center' }}>
                     <input
                       value={relation.key}
                       onChange={(event) => updateRelation(index, 'key', event.target.value)}

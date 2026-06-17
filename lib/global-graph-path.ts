@@ -36,6 +36,8 @@ export type GlobalGraphPathNode = {
   tagSlug: string;
   tagLabel: string;
   tagColor: string;
+  fieldLabels: GlobalTag['fieldLabels'];
+  genderOptions: GlobalTag['genderOptions'];
 };
 
 export type GlobalGraphPathEdge = {
@@ -139,6 +141,8 @@ function formatNode(node: PathNodeRecord, tagBySlug: Map<string, GlobalTag>): Gl
     tagSlug: tag.slug,
     tagLabel: tag.label,
     tagColor: tag.theme.primary,
+    fieldLabels: tag.fieldLabels,
+    genderOptions: tag.genderOptions,
   };
 }
 

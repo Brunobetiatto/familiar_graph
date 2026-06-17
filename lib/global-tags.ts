@@ -17,16 +17,41 @@ export type GlobalTagTheme = {
   edgeSelected: string;
 };
 
+export type GlobalTagFieldLabels = {
+  gender: string;
+  birthDate: string;
+  deathDate: string;
+  bio: string;
+};
+
+export type GlobalTagGenderOption = {
+  key: string;
+  label: string;
+};
+
 export type GlobalTag = {
   slug: string;
   label: string;
   description: string;
   theme: GlobalTagTheme;
+  fieldLabels: GlobalTagFieldLabels;
+  genderOptions: GlobalTagGenderOption[];
   relations: GlobalTagRelation[];
 };
 
 export const DEFAULT_GLOBAL_TAG_SLUG = 'person';
 export const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+export const DEFAULT_GLOBAL_FIELD_LABELS: GlobalTagFieldLabels = {
+  gender: 'Genero',
+  birthDate: 'Nascimento',
+  deathDate: 'Falecimento',
+  bio: 'Biografia',
+};
+export const DEFAULT_GLOBAL_GENDER_OPTIONS: GlobalTagGenderOption[] = [
+  { key: 'MALE', label: 'Masculino' },
+  { key: 'FEMALE', label: 'Feminino' },
+  { key: 'OTHER', label: 'Outro' },
+];
 
 export const OFFICIAL_GLOBAL_TAGS: GlobalTag[] = [
   {
@@ -45,6 +70,8 @@ export const OFFICIAL_GLOBAL_TAGS: GlobalTag[] = [
       edge: '#8a7856',
       edgeSelected: '#b28a35',
     },
+    fieldLabels: DEFAULT_GLOBAL_FIELD_LABELS,
+    genderOptions: DEFAULT_GLOBAL_GENDER_OPTIONS,
     relations: DEFAULT_GLOBAL_RELATIONS,
   },
   {
@@ -63,6 +90,17 @@ export const OFFICIAL_GLOBAL_TAGS: GlobalTag[] = [
       edge: '#7d8b62',
       edgeSelected: '#b9c979',
     },
+    fieldLabels: {
+      gender: 'Tipo',
+      birthDate: 'Inicio',
+      deathDate: 'Fim',
+      bio: 'Contexto',
+    },
+    genderOptions: [
+      { key: 'PERSON', label: 'Pessoa' },
+      { key: 'EVENT', label: 'Evento' },
+      { key: 'OTHER', label: 'Outro' },
+    ],
     relations: getDefaultRelationsForTag('ww2'),
   },
   {
@@ -81,6 +119,17 @@ export const OFFICIAL_GLOBAL_TAGS: GlobalTag[] = [
       edge: '#6d9aa4',
       edgeSelected: '#6bd0e5',
     },
+    fieldLabels: {
+      gender: 'Tipo',
+      birthDate: 'Fundacao',
+      deathDate: 'Encerramento',
+      bio: 'Descricao',
+    },
+    genderOptions: [
+      { key: 'PLACE', label: 'Local' },
+      { key: 'REGION', label: 'Regiao' },
+      { key: 'OTHER', label: 'Outro' },
+    ],
     relations: getDefaultRelationsForTag('place'),
   },
   {
@@ -99,6 +148,17 @@ export const OFFICIAL_GLOBAL_TAGS: GlobalTag[] = [
       edge: '#9b875a',
       edgeSelected: '#d5b85f',
     },
+    fieldLabels: {
+      gender: 'Tipo',
+      birthDate: 'Data',
+      deathDate: 'Fim de validade',
+      bio: 'Resumo',
+    },
+    genderOptions: [
+      { key: 'RECORD', label: 'Registro' },
+      { key: 'IMAGE', label: 'Imagem' },
+      { key: 'OTHER', label: 'Outro' },
+    ],
     relations: getDefaultRelationsForTag('document'),
   },
 ];
@@ -146,6 +206,73 @@ export function sanitizeGlobalTagTheme(theme: Partial<GlobalTagTheme> = {}): Glo
   };
 }
 
+export function sanitizeGlobalTagFieldLabels(
+  labels: Partial<GlobalTagFieldLabels> = {}
+): GlobalTagFieldLabels {
+  return {
+    gender: sanitizeLabel(labels.gender, DEFAULT_GLOBAL_FIELD_LABELS.gender),
+    birthDate: sanitizeLabel(labels.birthDate, DEFAULT_GLOBAL_FIELD_LABELS.birthDate),
+    deathDate: sanitizeLabel(labels.deathDate, DEFAULT_GLOBAL_FIELD_LABELS.deathDate),
+    bio: sanitizeLabel(labels.bio, DEFAULT_GLOBAL_FIELD_LABELS.bio),
+  };
+}
+
+export function normalizeGenderOptionKey(value: unknown): string {
+  if (typeof value !== 'string') return '';
+
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .trim()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 40);
+}
+
+export function normalizeGlobalTagGenderOptions(
+  options: Array<Partial<GlobalTagGenderOption>> | Record<string, string> | null | undefined,
+  fallback: GlobalTagGenderOption[] = DEFAULT_GLOBAL_GENDER_OPTIONS
+): GlobalTagGenderOption[] {
+  const source = Array.isArray(options)
+    ? options
+    : options && typeof options === 'object'
+      ? Object.entries(options).map(([key, label]) => ({ key, label }))
+      : [];
+  const normalized: GlobalTagGenderOption[] = [];
+  const seen = new Set<string>();
+
+  for (const option of source) {
+    const label = sanitizeLabel(option.label, '');
+    const key = normalizeGenderOptionKey(option.key || label);
+
+    if (!key || !label || seen.has(key)) continue;
+
+    normalized.push({ key, label });
+    seen.add(key);
+  }
+
+  return normalized.length > 0
+    ? normalized
+    : fallback.map((option) => ({ ...option }));
+}
+
+export function findGenderOptionLabel(
+  options: GlobalTagGenderOption[] | undefined,
+  value?: string | null
+): string | null {
+  if (!value) return null;
+
+  return options?.find((option) => option.key === value)?.label ?? value;
+}
+
 function sanitizeHex(value: unknown, fallback: string): string {
   return typeof value === 'string' && HEX_COLOR_PATTERN.test(value) ? value : fallback;
+}
+
+function sanitizeLabel(value: unknown, fallback: string): string {
+  if (typeof value !== 'string') return fallback;
+
+  const trimmed = value.trim().replace(/\s+/g, ' ');
+  return trimmed ? trimmed.slice(0, 40) : fallback;
 }

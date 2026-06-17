@@ -861,6 +861,8 @@ export default function GlobalGraphFlow({
         tagSlug: previousData?.tagSlug ?? activeTag.slug,
         tagLabel: previousData?.tagLabel ?? activeTag.label,
         tagColor: previousData?.tagColor ?? activeTag.theme.primary,
+        fieldLabels: previousData?.fieldLabels ?? activeTag.fieldLabels,
+        genderOptions: previousData?.genderOptions ?? activeTag.genderOptions,
       };
 
       setNodes((currentNodes) =>
@@ -886,7 +888,15 @@ export default function GlobalGraphFlow({
         current?.id === nodeId ? { ...current, name: nextNodeData.name } : current
       );
     },
-    [activeTag.label, activeTag.slug, activeTag.theme.primary, nodes, setNodes]
+    [
+      activeTag.fieldLabels,
+      activeTag.genderOptions,
+      activeTag.label,
+      activeTag.slug,
+      activeTag.theme.primary,
+      nodes,
+      setNodes,
+    ]
   );
 
   const handleUpdateConnection = useCallback(
@@ -1003,6 +1013,7 @@ export default function GlobalGraphFlow({
           initialConnection={requestPreset}
           initialTagSlug={activeTag.slug}
           isAuthenticated={Boolean(currentUser)}
+          initialTags={officialTags}
         />
       </div>
     );
@@ -1420,6 +1431,7 @@ export default function GlobalGraphFlow({
         initialConnection={requestPreset}
         initialTagSlug={activeTag.slug}
         isAuthenticated={Boolean(currentUser)}
+        initialTags={officialTags}
       />
     </div>
   );

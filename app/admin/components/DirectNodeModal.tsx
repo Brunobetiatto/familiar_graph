@@ -38,6 +38,7 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
   const [tagSlug, setTagSlug] = useState(DEFAULT_GLOBAL_TAG_SLUG);
   const [gender, setGender] = useState('');
   const [birthDate, setBirthDate] = useState('');
+  const [deathDate, setDeathDate] = useState('');
   const [bio, setBio] = useState('');
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [availableTags, setAvailableTags] = useState<GlobalTag[]>(OFFICIAL_GLOBAL_TAGS);
@@ -58,11 +59,20 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
     const selectedTag = availableTags.find((tag) => tag.slug === tagSlug);
     return selectedTag?.relations?.length ? selectedTag.relations : DEFAULT_GLOBAL_RELATIONS;
   }, [availableTags, tagSlug]);
+  const selectedTag = useMemo(
+    () => availableTags.find((tag) => tag.slug === tagSlug) ?? OFFICIAL_GLOBAL_TAGS[0],
+    [availableTags, tagSlug]
+  );
   const defaultRelationKey = relationOptions[0]?.key ?? 'OTHER';
   const allowedRelationKeys = useMemo(
     () => new Set(relationOptions.map((relation) => relation.key)),
     [relationOptions]
   );
+  const allowedGenderKeys = useMemo(
+    () => new Set(selectedTag.genderOptions.map((option) => option.key)),
+    [selectedTag]
+  );
+  const selectedGender = gender && allowedGenderKeys.has(gender) ? gender : '';
 
   // Efeito para pesquisar nós (Debounce simples)
   useEffect(() => {
@@ -197,8 +207,9 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
       nodeData: {
         name,
         tagSlug,
-        gender: gender || null,
+        gender: selectedGender || null,
         birthDate: birthDate ? new Date(birthDate).toISOString() : null,
+        deathDate: deathDate ? new Date(deathDate).toISOString() : null,
         bio: bio || null,
       },
       connections: connections.map((connection) => ({
@@ -243,7 +254,7 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
       }
 
       // Sucesso total
-      setName(''); setTagSlug(DEFAULT_GLOBAL_TAG_SLUG); setGender(''); setBirthDate(''); setBio(''); setPhotoFile(null); setConnections([]);
+      setName(''); setTagSlug(DEFAULT_GLOBAL_TAG_SLUG); setGender(''); setBirthDate(''); setDeathDate(''); setBio(''); setPhotoFile(null); setConnections([]);
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -307,28 +318,37 @@ export default function DirectNodeModal({ isOpen, onClose, onSuccess }: Props) {
                 </Select>
               </div>
               <div style={{ flex: 1 }}>
-                <Label>Gênero</Label>
-                <Select value={gender} onChange={(e: any) => setGender(e.target.value)}>
+                <Label>{selectedTag.fieldLabels.gender}</Label>
+                <Select value={selectedGender} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setGender(e.target.value)}>
                   <option value="">Selecione...</option>
-                  <option value="MALE">Masculino</option>
-                  <option value="FEMALE">Feminino</option>
+                  {selectedTag.genderOptions.map((option) => (
+                    <option key={option.key} value={option.key}>
+                      {option.label}
+                    </option>
+                  ))}
                 </Select>
               </div>
             </div>
             <div className="node-request-modal-grid" style={{ display: 'flex', gap: 16 }}>
               <div style={{ flex: 1 }}>
-                <Label>Nascimento</Label>
+                <Label>{selectedTag.fieldLabels.birthDate}</Label>
                 <Input type="date" value={birthDate} onChange={(e: any) => setBirthDate(e.target.value)} />
               </div>
-              <div style={{ flex: 2 }}>
-                <Label>Biografia Breve</Label>
+              <div style={{ flex: 1 }}>
+                <Label>{selectedTag.fieldLabels.deathDate}</Label>
+                <Input type="date" value={deathDate} onChange={(e: any) => setDeathDate(e.target.value)} />
+              </div>
+            </div>
+            <div className="node-request-modal-grid" style={{ display: 'flex', gap: 16, marginTop: 12 }}>
+              <div style={{ flex: 1 }}>
+                <Label>{selectedTag.fieldLabels.bio}</Label>
                 <RichTextEditor
                   value={bio}
                   onChange={setBio}
                   citationTagSlug={tagSlug}
                   allowImages={false}
                   minHeight={96}
-                  placeholder="Breve resumo com citacoes internas..."
+                  placeholder={`Escreva ${selectedTag.fieldLabels.bio.toLowerCase()} e citacoes internas...`}
                 />
               </div>
             </div>

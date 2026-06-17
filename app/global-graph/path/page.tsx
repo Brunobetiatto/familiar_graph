@@ -116,8 +116,8 @@ export default async function GlobalGraphPathPage({
                       <h2>{step.node.name}</h2>
                       <div className={styles.nodeMeta}>
                         <span>{step.node.tagLabel}</span>
-                        {birthDate && <span>n. {birthDate}</span>}
-                        {deathDate && <span>f. {deathDate}</span>}
+                        {birthDate && <span>{step.node.fieldLabels.birthDate}: {birthDate}</span>}
+                        {deathDate && <span>{step.node.fieldLabels.deathDate}: {deathDate}</span>}
                       </div>
                       {step.node.bio && (
                         <div className={styles.nodeBio}>

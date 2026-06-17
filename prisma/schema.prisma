@@ -12,12 +12,6 @@ enum Role {
   ADMIN
 }
 
-enum Gender {
-  MALE
-  FEMALE
-  OTHER
-}
-
 enum RequestStatus {
   PENDING
   APPROVED
@@ -103,7 +97,7 @@ model PersonNode {
   name      String
   birthDate DateTime? @db.Date
   deathDate DateTime? @db.Date
-  gender    Gender?
+  gender    String?
   bio       String?   @db.Text
   photoUrl  String?
 
@@ -139,7 +133,7 @@ model NodeRequest {
   nodeName      String
   nodeBirthDate DateTime?     @db.Date
   nodeDeathDate DateTime?     @db.Date
-  nodeGender    Gender?
+  nodeGender    String?
   nodeBio       String?       @db.Text
   nodePhotoUrl  String?
   nodeTagSlug   String        @default("person")
@@ -179,7 +173,7 @@ model GlobalNode {
   name        String
   birthDate   DateTime? @db.Date
   deathDate   DateTime? @db.Date
-  gender      Gender?
+  gender      String?
   bio         String?   @db.Text
   photoUrl    String?
   tagSlug     String    @default("person")
@@ -210,11 +204,31 @@ model GlobalTag {
   nodeSelected String
   edge         String
   edgeSelected String
+  genderLabel    String @default("Genero")
+  birthDateLabel String @default("Nascimento")
+  deathDateLabel String @default("Falecimento")
+  bioLabel       String @default("Biografia")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   relations    GlobalTagRelation[]
+  genderOptions GlobalTagGenderOption[]
 
   @@map("GLOBAL_TAG")
+}
+
+model GlobalTagGenderOption {
+  id        String   @id @default(uuid())
+  tagSlug   String
+  key       String
+  label     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tag       GlobalTag @relation(fields: [tagSlug], references: [slug], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([tagSlug, key])
+  @@index([tagSlug])
+  @@map("GLOBAL_TAG_GENDER_OPTION")
 }
 
 model GlobalTagRelation {

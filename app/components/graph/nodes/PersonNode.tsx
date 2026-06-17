@@ -2,6 +2,11 @@
 
 import { memo } from 'react';
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
+import {
+  findGenderOptionLabel,
+  type GlobalTagFieldLabels,
+  type GlobalTagGenderOption,
+} from '@/lib/global-tags';
 import styles from './PersonNode.module.css';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -10,23 +15,19 @@ export type PersonNodeData = {
   name: string;
   birthDate: string | null;
   deathDate: string | null;
-  gender: 'MALE' | 'FEMALE' | 'OTHER' | null;
+  gender: string | null;
   bio: string | null;
   photoUrl: string | null;
   tagSlug: string;
   tagLabel: string;
   tagColor: string;
+  fieldLabels: GlobalTagFieldLabels;
+  genderOptions: GlobalTagGenderOption[];
 };
 
 export type PersonNodeType = Node<PersonNodeData, 'personNode'>;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const GENDER_SYMBOL: Record<string, string> = {
-  MALE: '♂',
-  FEMALE: '♀',
-  OTHER: '⚥',
-};
 
 function getInitials(name: string): string {
   return name
@@ -47,6 +48,7 @@ function formatYear(iso: string | null): string | null {
 function PersonNode({ data, selected }: NodeProps<PersonNodeType>) {
   const birthYear = formatYear(data.birthDate);
   const deathYear = formatYear(data.deathDate);
+  const genderLabel = findGenderOptionLabel(data.genderOptions, data.gender);
 
   let lifespan: string | null = null;
   if (birthYear && deathYear) lifespan = `${birthYear} – ${deathYear}`;
@@ -99,7 +101,7 @@ function PersonNode({ data, selected }: NodeProps<PersonNodeType>) {
             )}
             {data.gender && (
               <span className={styles.gender}>
-                {GENDER_SYMBOL[data.gender]}
+                {genderLabel}
               </span>
             )}
           </div>

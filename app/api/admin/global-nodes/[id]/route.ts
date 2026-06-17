@@ -9,7 +9,7 @@ type RouteContext = {
 
 type NodeUpdateBody = {
   name?: string;
-  gender?: 'MALE' | 'FEMALE' | 'OTHER' | null;
+  gender?: string | null;
   birthDate?: string | null;
   deathDate?: string | null;
   bio?: string | null;
@@ -26,9 +26,8 @@ function parseDate(value?: string | null) {
 }
 
 function parseGender(value?: NodeUpdateBody['gender']) {
-  if (!value) return null;
-  if (value === 'MALE' || value === 'FEMALE' || value === 'OTHER') return value;
-  return null;
+  const trimmed = value?.trim();
+  return trimmed ? trimmed.slice(0, 40) : null;
 }
 
 export async function PATCH(request: Request, context: RouteContext) {

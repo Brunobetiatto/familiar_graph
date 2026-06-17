@@ -14,8 +14,6 @@ import {
 } from '@/lib/global-relations';
 import { getImageFileValidationError } from '@/lib/image-validation';
 
-type Gender = 'MALE' | 'FEMALE' | 'OTHER' | '';
-
 type Connection = {
   targetNodeId: string;
   targetNodeName: string;
@@ -34,6 +32,7 @@ type Props = {
   initialConnection?: { id: string; name: string } | null;
   initialTagSlug?: string;
   isAuthenticated?: boolean;
+  initialTags?: GlobalTag[];
 };
 
 const MAX_CONNECTIONS = 10;
@@ -44,16 +43,17 @@ export default function RequestNodeModal({
   initialConnection,
   initialTagSlug = DEFAULT_GLOBAL_TAG_SLUG,
   isAuthenticated = true,
+  initialTags = OFFICIAL_GLOBAL_TAGS,
 }: Props) {
   const [name, setName] = useState('');
   const [tagSlug, setTagSlug] = useState(initialTagSlug);
-  const [gender, setGender] = useState<Gender>('');
+  const [gender, setGender] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [deathDate, setDeathDate] = useState('');
   const [bio, setBio] = useState('');
   const [userNote, setUserNote] = useState('');
   const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [availableTags, setAvailableTags] = useState<GlobalTag[]>(OFFICIAL_GLOBAL_TAGS);
+  const [availableTags, setAvailableTags] = useState<GlobalTag[]>(initialTags);
   const photoPreviewUrl = useMemo(
     () => (photoFile ? URL.createObjectURL(photoFile) : ''),
     [photoFile]
@@ -70,14 +70,24 @@ export default function RequestNodeModal({
     const selectedTag = availableTags.find((tag) => tag.slug === tagSlug);
     return selectedTag?.relations?.length ? selectedTag.relations : DEFAULT_GLOBAL_RELATIONS;
   }, [availableTags, tagSlug]);
+  const selectedTag = useMemo(
+    () => availableTags.find((tag) => tag.slug === tagSlug) ?? OFFICIAL_GLOBAL_TAGS[0],
+    [availableTags, tagSlug]
+  );
   const defaultRelationKey = relationOptions[0]?.key ?? 'OTHER';
   const allowedRelationKeys = useMemo(
     () => new Set(relationOptions.map((relation) => relation.key)),
     [relationOptions]
   );
+  const allowedGenderKeys = useMemo(
+    () => new Set(selectedTag.genderOptions.map((option) => option.key)),
+    [selectedTag]
+  );
+  const selectedGender = gender && allowedGenderKeys.has(gender) ? gender : '';
 
   useEffect(() => {
     if (!isOpen) return;
+    setAvailableTags(initialTags);
     setTagSlug(initialTagSlug);
 
     if (initialConnection && initialConnection.id) {
@@ -101,14 +111,14 @@ export default function RequestNodeModal({
         ];
       });
     }
-  }, [defaultRelationKey, initialConnection, initialTagSlug, isOpen]);
+  }, [defaultRelationKey, initialConnection, initialTagSlug, initialTags, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
 
     async function fetchTags() {
       try {
-        const res = await fetch('/api/global-tags');
+        const res = await fetch('/api/global-tags', { cache: 'no-store' });
         if (!res.ok) return;
         const tags = (await res.json()) as GlobalTag[];
         if (tags.length > 0) setAvailableTags(tags);
@@ -255,7 +265,7 @@ export default function RequestNodeModal({
       nodeData: {
         name,
         tagSlug,
-        gender: gender || null,
+        gender: selectedGender || null,
         birthDate: birthDate ? new Date(birthDate).toISOString() : null,
         deathDate: deathDate ? new Date(deathDate).toISOString() : null,
         bio: bio || null,
@@ -498,36 +508,38 @@ export default function RequestNodeModal({
                   </Select>
                 </div>
                 <div style={{ flex: 1 }}>
-                  <Label>Genero</Label>
-                  <Select value={gender} onChange={(e) => setGender(e.target.value as Gender)}>
+                  <Label>{selectedTag.fieldLabels.gender}</Label>
+                  <Select value={selectedGender} onChange={(e) => setGender(e.target.value)}>
                     <option value="">Selecione...</option>
-                    <option value="MALE">Masculino</option>
-                    <option value="FEMALE">Feminino</option>
-                    <option value="OTHER">Outro</option>
+                    {selectedTag.genderOptions.map((option) => (
+                      <option key={option.key} value={option.key}>
+                        {option.label}
+                      </option>
+                    ))}
                   </Select>
                 </div>
               </div>
 
               <div className="node-request-modal-grid" style={{ display: 'flex', gap: 16 }}>
                 <div style={{ flex: 1 }}>
-                  <Label>Nascimento</Label>
+                  <Label>{selectedTag.fieldLabels.birthDate}</Label>
                   <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <Label>Falecimento</Label>
+                  <Label>{selectedTag.fieldLabels.deathDate}</Label>
                   <Input type="date" value={deathDate} onChange={(e) => setDeathDate(e.target.value)} />
                 </div>
               </div>
 
               <div style={{ marginTop: 12 }}>
-                <Label>Biografia breve</Label>
+                <Label>{selectedTag.fieldLabels.bio}</Label>
                 <RichTextEditor
                   value={bio}
                   onChange={setBio}
                   citationTagSlug={tagSlug}
                   allowImages={false}
                   minHeight={96}
-                  placeholder="Resumo, contexto e citacoes internas..."
+                  placeholder={`Escreva ${selectedTag.fieldLabels.bio.toLowerCase()} e citacoes internas...`}
                 />
               </div>
 

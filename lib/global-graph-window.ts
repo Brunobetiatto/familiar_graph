@@ -32,6 +32,8 @@ type GlobalNodeData = {
   tagSlug: string;
   tagLabel: string;
   tagColor: string;
+  fieldLabels: GlobalTag['fieldLabels'];
+  genderOptions: GlobalTag['genderOptions'];
 };
 
 type GlobalEdgeData = {
@@ -102,6 +104,8 @@ function formatNode(node: DbNode, tagBySlug: Map<string, GlobalTag>): Node<Globa
       tagSlug: tag.slug,
       tagLabel: tag.label,
       tagColor: tag.theme.primary,
+      fieldLabels: tag.fieldLabels,
+      genderOptions: tag.genderOptions,
     },
   };
 }

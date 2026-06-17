@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import type { PersonNodeData } from './nodes/PersonNode';
 import { moveFocusWithin } from '@/lib/keyboard-navigation';
+import { findGenderOptionLabel } from '@/lib/global-tags';
 import RichTextViewer from '@/app/components/RichTextViewer';
 import RichTextEditor from '@/app/components/RichTextEditor';
 import styles from './NodeDetailPanel.module.css';
@@ -41,12 +42,6 @@ export type NodeEditData = {
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const GENDER_LABEL: Record<string, string> = {
-  MALE: 'Masculino',
-  FEMALE: 'Feminino',
-  OTHER: 'Outro',
-};
 
 function formatDate(iso: string | null): string | null {
   if (!iso) return null;
@@ -132,6 +127,12 @@ export default function NodeDetailPanel({
   }, [node]);
 
   const visible = node !== null;
+  const fieldLabels = node?.fieldLabels;
+  const genderOptions = node?.genderOptions ?? [];
+  const genderLabel = findGenderOptionLabel(genderOptions, node?.gender);
+  const draftGenderMissing =
+    Boolean(editDraft?.gender) &&
+    !genderOptions.some((option) => option.key === editDraft?.gender);
 
   function startPanelDrag(event: PointerEvent<HTMLDivElement>) {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -323,7 +324,7 @@ export default function NodeDetailPanel({
 
             {node.gender && (
               <span style={{ color: '#6a5a40', fontSize: 12, marginTop: 6 }}>
-                {GENDER_LABEL[node.gender]}
+                {genderLabel}
               </span>
             )}
             {node.tagLabel && (
@@ -358,7 +359,7 @@ export default function NodeDetailPanel({
                 </label>
 
                 <label className={styles.editField}>
-                  <span>Genero</span>
+                  <span>{fieldLabels?.gender ?? 'Genero'}</span>
                   <select
                     value={editDraft.gender ?? ''}
                     onChange={(event) =>
@@ -373,15 +374,20 @@ export default function NodeDetailPanel({
                     }
                   >
                     <option value="">Nao informado</option>
-                    <option value="MALE">Masculino</option>
-                    <option value="FEMALE">Feminino</option>
-                    <option value="OTHER">Outro</option>
+                    {genderOptions.map((option) => (
+                      <option key={option.key} value={option.key}>
+                        {option.label}
+                      </option>
+                    ))}
+                    {draftGenderMissing && (
+                      <option value={editDraft.gender ?? ''}>{editDraft.gender}</option>
+                    )}
                   </select>
                 </label>
 
                 <div className={styles.editGrid}>
                   <label className={styles.editField}>
-                    <span>Nascimento</span>
+                    <span>{fieldLabels?.birthDate ?? 'Nascimento'}</span>
                     <input
                       type="date"
                       value={editDraft.birthDate ?? ''}
@@ -394,7 +400,7 @@ export default function NodeDetailPanel({
                   </label>
 
                   <label className={styles.editField}>
-                    <span>Falecimento</span>
+                    <span>{fieldLabels?.deathDate ?? 'Falecimento'}</span>
                     <input
                       type="date"
                       value={editDraft.deathDate ?? ''}
@@ -421,7 +427,7 @@ export default function NodeDetailPanel({
                 </label>
 
                 <div className={styles.editField}>
-                  <span>Biografia</span>
+                  <span>{fieldLabels?.bio ?? 'Biografia'}</span>
                   <RichTextEditor
                     value={editDraft.bio ?? ''}
                     onChange={(value) =>
@@ -461,10 +467,10 @@ export default function NodeDetailPanel({
             ) : (
             <>
             {formatDate(node.birthDate) && (
-              <InfoRow label="Nascimento" value={formatDate(node.birthDate)!} />
+              <InfoRow label={fieldLabels?.birthDate ?? 'Nascimento'} value={formatDate(node.birthDate)!} />
             )}
             {formatDate(node.deathDate) && (
-              <InfoRow label="Falecimento" value={formatDate(node.deathDate)!} />
+              <InfoRow label={fieldLabels?.deathDate ?? 'Falecimento'} value={formatDate(node.deathDate)!} />
             )}
             {node.bio && (
               <div>
@@ -478,7 +484,7 @@ export default function NodeDetailPanel({
                     marginBottom: 6,
                   }}
                 >
-                  Biografia
+                  {fieldLabels?.bio ?? 'Biografia'}
                 </p>
                 <div
                   style={{
