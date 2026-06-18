@@ -37,6 +37,17 @@ type Props = {
 
 const MAX_CONNECTIONS = 10;
 
+function sortBySortOrder<T extends { sortOrder?: number }>(items: T[]): T[] {
+  return items
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => {
+      const aOrder = typeof a.item.sortOrder === 'number' ? a.item.sortOrder : a.index;
+      const bOrder = typeof b.item.sortOrder === 'number' ? b.item.sortOrder : b.index;
+      return aOrder - bOrder || a.index - b.index;
+    })
+    .map(({ item }) => item);
+}
+
 export default function RequestNodeModal({
   isOpen,
   onClose,
@@ -68,11 +79,17 @@ export default function RequestNodeModal({
   const [success, setSuccess] = useState(false);
   const relationOptions = useMemo<GlobalTagRelation[]>(() => {
     const selectedTag = availableTags.find((tag) => tag.slug === tagSlug);
-    return selectedTag?.relations?.length ? selectedTag.relations : DEFAULT_GLOBAL_RELATIONS;
+    return sortBySortOrder(
+      selectedTag?.relations?.length ? selectedTag.relations : DEFAULT_GLOBAL_RELATIONS
+    );
   }, [availableTags, tagSlug]);
   const selectedTag = useMemo(
     () => availableTags.find((tag) => tag.slug === tagSlug) ?? OFFICIAL_GLOBAL_TAGS[0],
     [availableTags, tagSlug]
+  );
+  const genderOptions = useMemo(
+    () => sortBySortOrder(selectedTag.genderOptions),
+    [selectedTag]
   );
   const defaultRelationKey = relationOptions[0]?.key ?? 'OTHER';
   const allowedRelationKeys = useMemo(
@@ -80,8 +97,8 @@ export default function RequestNodeModal({
     [relationOptions]
   );
   const allowedGenderKeys = useMemo(
-    () => new Set(selectedTag.genderOptions.map((option) => option.key)),
-    [selectedTag]
+    () => new Set(genderOptions.map((option) => option.key)),
+    [genderOptions]
   );
   const selectedGender = gender && allowedGenderKeys.has(gender) ? gender : '';
 
@@ -116,18 +133,27 @@ export default function RequestNodeModal({
   useEffect(() => {
     if (!isOpen) return;
 
-    async function fetchTags() {
+    let cancelled = false;
+
+    async function fetchFreshTags() {
       try {
         const res = await fetch('/api/global-tags', { cache: 'no-store' });
         if (!res.ok) return;
+
         const tags = (await res.json()) as GlobalTag[];
-        if (tags.length > 0) setAvailableTags(tags);
+        if (!cancelled && tags.length > 0) {
+          setAvailableTags(tags);
+        }
       } catch (err) {
         console.error('Erro ao buscar tags globais:', err);
       }
     }
 
-    void fetchTags();
+    void fetchFreshTags();
+
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -511,7 +537,7 @@ export default function RequestNodeModal({
                   <Label>{selectedTag.fieldLabels.gender}</Label>
                   <Select value={selectedGender} onChange={(e) => setGender(e.target.value)}>
                     <option value="">Selecione...</option>
-                    {selectedTag.genderOptions.map((option) => (
+                    {genderOptions.map((option) => (
                       <option key={option.key} value={option.key}>
                         {option.label}
                       </option>

@@ -221,6 +221,7 @@ model GlobalTagGenderOption {
   tagSlug   String
   key       String
   label     String
+  sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -236,6 +237,7 @@ model GlobalTagRelation {
   tagSlug   String
   key       String
   label     String
+  sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

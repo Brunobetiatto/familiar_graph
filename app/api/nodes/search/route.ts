@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { resolveGlobalTagSlug } from '@/lib/global-tags-server';
+import { fuzzySearchItems } from '@/lib/fuzzy-node-search';
 
 export async function GET(request: Request) {
   try {
@@ -10,22 +11,19 @@ export async function GET(request: Request) {
     if (!userId) return NextResponse.json({ error: 'Nao autorizado.' }, { status: 401 });
 
     const { searchParams } = new URL(request.url);
-    const query = searchParams.get('q');
+    const query = searchParams.get('q')?.trim() ?? '';
     const tagSlug = await resolveGlobalTagSlug(searchParams.get('tagSlug'));
 
-    if (!query || query.length < 2) {
+    if (query.length < 2) {
       return NextResponse.json([], { status: 200 });
     }
 
-    const nodes = await prisma.globalNode.findMany({
+    const candidates = await prisma.globalNode.findMany({
       where: {
         tagSlug,
-        name: {
-          contains: query,
-          mode: 'insensitive',
-        },
       },
-      take: 10,
+      orderBy: { name: 'asc' },
+      take: 800,
       select: {
         id: true,
         name: true,
@@ -33,6 +31,8 @@ export async function GET(request: Request) {
         tagSlug: true,
       },
     });
+
+    const nodes = fuzzySearchItems(candidates, query, 10);
 
     return NextResponse.json(nodes, { status: 200 });
   } catch (error) {

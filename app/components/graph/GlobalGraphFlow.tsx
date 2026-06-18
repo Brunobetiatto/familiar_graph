@@ -26,6 +26,7 @@ import ConnectionDocumentModal, {
 } from './ConnectionDocumentModal';
 import ElkEdge from './edges/ElkEdge';
 import { applyElkLayout } from '@/lib/graph-layout'; // ← NOVO IMPORT
+import { normalizeSearchText } from '@/lib/fuzzy-node-search';
 import type { GlobalTag } from '@/lib/global-tags';
 import styles from './GlobalGraphFlow.module.css';
 
@@ -69,6 +70,7 @@ type Props = {
 
 type EdgeData = {
   relation?: string;
+  relationKey?: string;
   description?: string | null;
   documentTitle?: string | null;
   documentContent?: string | null;
@@ -105,12 +107,39 @@ type GraphWindowResponse = {
   activeTag: GlobalTag;
 };
 
+type GraphFilters = {
+  textQuery: string;
+  dateField: 'any' | 'birthDate' | 'deathDate';
+  datePresence: 'all' | 'withAnyDate' | 'withBirthDate' | 'withDeathDate' | 'withBothDates';
+  dateFrom: string;
+  dateTo: string;
+  genderValues: string[];
+  relationKeys: string[];
+  onlyConnected: boolean;
+  minConnections: number;
+  nodeContent: 'all' | 'withPhoto' | 'withoutPhoto' | 'withBio';
+  edgeDocumentOnly: boolean;
+};
+
 const NODE_WIDTH = 200;
 const NODE_HEIGHT = 80;
 const GRAPH_MIN_ZOOM = 0.12;
 const CLEAN_EDGE_MAX_PER_NODE = 3;
 const CLEAN_EDGE_MAX_TOTAL = 150;
 const CLEAN_EDGE_ROOT_BONUS_LIMIT = 36;
+const EMPTY_GRAPH_FILTERS: GraphFilters = {
+  textQuery: '',
+  dateField: 'any',
+  datePresence: 'all',
+  dateFrom: '',
+  dateTo: '',
+  genderValues: [],
+  relationKeys: [],
+  onlyConnected: false,
+  minConnections: 0,
+  nodeContent: 'all',
+  edgeDocumentOnly: false,
+};
 
 function getGraphFitPadding(nodeCount: number): number {
   if (nodeCount <= 1) return 0.42;
@@ -133,6 +162,80 @@ function edgeHasDocument(edgeData?: EdgeData) {
       edgeData?.documentImageUrl ||
       edgeData?.description
   );
+}
+
+function readNodeDateValue(data: Partial<PersonNodeData>, field: GraphFilters['dateField']) {
+  if (field === 'birthDate') return data.birthDate ?? null;
+  if (field === 'deathDate') return data.deathDate ?? null;
+  return data.birthDate ?? data.deathDate ?? null;
+}
+
+function isIsoDateInRange(iso: string | null, from: string, to: string): boolean {
+  if (!from && !to) return true;
+  if (!iso) return false;
+
+  const value = new Date(iso).getTime();
+  if (Number.isNaN(value)) return false;
+
+  if (from) {
+    const fromTime = new Date(`${from}T00:00:00`).getTime();
+    if (!Number.isNaN(fromTime) && value < fromTime) return false;
+  }
+
+  if (to) {
+    const toTime = new Date(`${to}T23:59:59`).getTime();
+    if (!Number.isNaN(toTime) && value > toTime) return false;
+  }
+
+  return true;
+}
+
+function getEdgeRelationKey(edge: Edge): string {
+  const data = edge.data as EdgeData | undefined;
+  return data?.relationKey ?? String(data?.relation ?? edge.label ?? '');
+}
+
+function countActiveFilters(filters: GraphFilters): number {
+  return (
+    (filters.textQuery.trim() ? 1 : 0) +
+    (filters.dateFrom || filters.dateTo ? 1 : 0) +
+    (filters.datePresence !== 'all' ? 1 : 0) +
+    filters.genderValues.length +
+    filters.relationKeys.length +
+    (filters.onlyConnected ? 1 : 0) +
+    (filters.minConnections > 0 ? 1 : 0) +
+    (filters.nodeContent !== 'all' ? 1 : 0) +
+    (filters.edgeDocumentOnly ? 1 : 0)
+  );
+}
+
+function matchesDatePresence(
+  data: Partial<PersonNodeData>,
+  presence: GraphFilters['datePresence']
+): boolean {
+  if (presence === 'withAnyDate') return Boolean(data.birthDate || data.deathDate);
+  if (presence === 'withBirthDate') return Boolean(data.birthDate);
+  if (presence === 'withDeathDate') return Boolean(data.deathDate);
+  if (presence === 'withBothDates') return Boolean(data.birthDate && data.deathDate);
+  return true;
+}
+
+function matchesNodeContent(data: Partial<PersonNodeData>, content: GraphFilters['nodeContent']) {
+  if (content === 'withPhoto') return Boolean(data.photoUrl);
+  if (content === 'withoutPhoto') return !data.photoUrl;
+  if (content === 'withBio') return Boolean(data.bio?.trim());
+  return true;
+}
+
+function matchesTextFilter(data: Partial<PersonNodeData>, query: string) {
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedQuery) return true;
+
+  const searchableText = normalizeSearchText(
+    [data.name, data.bio, data.gender, data.tagLabel].filter(Boolean).join(' ')
+  );
+
+  return searchableText.includes(normalizedQuery);
 }
 
 function selectCleanGraphEdges({
@@ -240,6 +343,8 @@ export default function GlobalGraphFlow({
 }: Props) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [allNodes, setAllNodes] = useState<Node[]>([]);
+  const [allEdges, setAllEdges] = useState<Edge[]>(initialEdges);
   const flowInstanceRef = useRef<ReactFlowInstance<Node, Edge> | null>(null);
   const pendingFitRef = useRef<{ nodeIds: string[]; nodeCount: number; duration: number } | null>(
     null
@@ -262,6 +367,8 @@ export default function GlobalGraphFlow({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isGraphLoading, setIsGraphLoading] = useState(false);
+  const [isGraphFilterOpen, setIsGraphFilterOpen] = useState(false);
+  const [graphFilters, setGraphFilters] = useState<GraphFilters>(EMPTY_GRAPH_FILTERS);
   const [searchError, setSearchError] = useState('');
   const [themeAnimationKey, setThemeAnimationKey] = useState(0);
   const [isPathMenuOpen, setIsPathMenuOpen] = useState(false);
@@ -275,6 +382,7 @@ export default function GlobalGraphFlow({
   const searchCloseTimerRef = useRef<number | null>(null);
   const initialFocusAppliedRef = useRef(false);
   const pathMenuRef = useRef<HTMLDivElement>(null);
+  const graphFilterRef = useRef<HTMLDivElement>(null);
 
   const clearSearchCloseTimer = useCallback(() => {
     if (!searchCloseTimerRef.current) return;
@@ -354,6 +462,8 @@ export default function GlobalGraphFlow({
       setRootNode(nextRootNode);
 
       if (graphNodes.length === 0) {
+        setAllNodes([]);
+        setAllEdges([]);
         setNodes([]);
         setEdges([]);
         setLayoutReady(true);
@@ -381,6 +491,8 @@ export default function GlobalGraphFlow({
             }))
           : laidOutNodes;
 
+        setAllNodes(laidOutNodes);
+        setAllEdges(nextGraphEdges);
         setNodes(nextNodes);
         setEdges(nextGraphEdges);
         fitGraphContent(nextNodes, selectedNodeId ? 560 : 420);
@@ -404,6 +516,8 @@ export default function GlobalGraphFlow({
           : graphNodes;
 
         setNodes(nextNodes);
+        setAllNodes(graphNodes);
+        setAllEdges(graphEdges);
         setEdges(graphEdges);
         fitGraphContent(nextNodes, selectedNodeId ? 560 : 420);
 
@@ -521,6 +635,21 @@ export default function GlobalGraphFlow({
     return () => document.removeEventListener('pointerdown', handlePointerDown);
   }, [isPathMenuOpen]);
 
+  useEffect(() => {
+    if (!isGraphFilterOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (graphFilterRef.current?.contains(target)) return;
+
+      setIsGraphFilterOpen(false);
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [isGraphFilterOpen]);
+
   const loadGraphAroundNode = useCallback(
     async (node: { id: string; name: string }) => {
       setIsGraphLoading(true);
@@ -534,7 +663,7 @@ export default function GlobalGraphFlow({
           seedNodeId: node.id,
           tagSlug: activeTag.slug,
         });
-        const res = await fetch(`/api/global-graph?${params.toString()}`);
+        const res = await fetch(`/api/global-graph?${params.toString()}`, { cache: 'no-store' });
         if (!res.ok) {
           const data = await res.json();
           throw new Error(data.error || 'Erro ao carregar recorte do grafo.');
@@ -563,11 +692,12 @@ export default function GlobalGraphFlow({
       setIsSearchOpen(false);
       setIsFilterOpen(false);
       setIsSearchExpanded(true);
-      setActiveTag(tag);
+      setGraphFilters(EMPTY_GRAPH_FILTERS);
+      setIsGraphFilterOpen(false);
 
       try {
         const params = new URLSearchParams({ tagSlug: tag.slug });
-        const res = await fetch(`/api/global-graph?${params.toString()}`);
+        const res = await fetch(`/api/global-graph?${params.toString()}`, { cache: 'no-store' });
         if (!res.ok) {
           const data = await res.json();
           throw new Error(data.error || 'Erro ao carregar tema do grafo.');
@@ -586,6 +716,142 @@ export default function GlobalGraphFlow({
     },
     [applyGraphWindow, updateGraphUrl]
   );
+
+  const activeFilterCount = useMemo(() => countActiveFilters(graphFilters), [graphFilters]);
+
+  const maxConnectionCount = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    allEdges.forEach((edge) => {
+      counts.set(edge.source, (counts.get(edge.source) ?? 0) + 1);
+      counts.set(edge.target, (counts.get(edge.target) ?? 0) + 1);
+    });
+
+    return Math.max(0, ...counts.values());
+  }, [allEdges]);
+
+  useEffect(() => {
+    setGraphFilters((current) =>
+      current.minConnections > maxConnectionCount
+        ? { ...current, minConnections: maxConnectionCount }
+        : current
+    );
+  }, [maxConnectionCount]);
+
+  const filteredGraph = useMemo(() => {
+    const relationFilter = new Set(graphFilters.relationKeys);
+    const genderFilter = new Set(graphFilters.genderValues);
+    const relationFilteredEdges =
+      relationFilter.size > 0
+        ? allEdges.filter((edge) => relationFilter.has(getEdgeRelationKey(edge)))
+        : allEdges;
+    const scopedEdges = graphFilters.edgeDocumentOnly
+      ? relationFilteredEdges.filter((edge) => edgeHasDocument(edge.data as EdgeData | undefined))
+      : relationFilteredEdges;
+    const connectedNodeIds = new Set<string>();
+    const connectionCountByNodeId = new Map<string, number>();
+
+    scopedEdges.forEach((edge) => {
+      connectedNodeIds.add(edge.source);
+      connectedNodeIds.add(edge.target);
+      connectionCountByNodeId.set(edge.source, (connectionCountByNodeId.get(edge.source) ?? 0) + 1);
+      connectionCountByNodeId.set(edge.target, (connectionCountByNodeId.get(edge.target) ?? 0) + 1);
+    });
+
+    const filteredNodes = allNodes.filter((node) => {
+      const data = node.data as Partial<PersonNodeData>;
+      const nodeDate = readNodeDateValue(data, graphFilters.dateField);
+      const hasMatchingDate = isIsoDateInRange(nodeDate, graphFilters.dateFrom, graphFilters.dateTo);
+      const hasMatchingDatePresence = matchesDatePresence(data, graphFilters.datePresence);
+      const hasMatchingGender =
+        genderFilter.size === 0 || (data.gender ? genderFilter.has(data.gender) : false);
+      const connectionCount = connectionCountByNodeId.get(node.id) ?? 0;
+      const hasConnection = !graphFilters.onlyConnected || connectionCount > 0;
+      const hasMinimumConnections = connectionCount >= graphFilters.minConnections;
+      const hasMatchingContent = matchesNodeContent(data, graphFilters.nodeContent);
+      const hasMatchingText = matchesTextFilter(data, graphFilters.textQuery);
+
+      return (
+        hasMatchingDate &&
+        hasMatchingDatePresence &&
+        hasMatchingGender &&
+        hasConnection &&
+        hasMinimumConnections &&
+        hasMatchingContent &&
+        hasMatchingText
+      );
+    });
+    const visibleNodeIds = new Set(filteredNodes.map((node) => node.id));
+    const filteredEdges = scopedEdges.filter(
+      (edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target)
+    );
+
+    return {
+      nodes: filteredNodes,
+      edges: filteredEdges,
+      nodeIds: visibleNodeIds,
+      edgeIds: new Set(filteredEdges.map((edge) => edge.id)),
+      connectionCountByNodeId,
+    };
+  }, [allEdges, allNodes, graphFilters]);
+
+  useEffect(() => {
+    const nextNodes = filteredGraph.nodes.map((node) => ({
+      ...node,
+      selected: selectedNodeData?.id === node.id,
+    }));
+
+    setNodes(nextNodes);
+    setEdges(filteredGraph.edges);
+
+    if (selectedNodeData && !filteredGraph.nodeIds.has(selectedNodeData.id)) {
+      setSelectedNodeData(null);
+    }
+
+    if (selectedEdgeId && !filteredGraph.edgeIds.has(selectedEdgeId)) {
+      setSelectedEdgeId(null);
+      setDocumentConnection(null);
+    }
+
+    if (layoutReady && allNodes.length > 0) {
+      fitGraphContent(nextNodes, 320);
+    }
+  }, [
+    allNodes.length,
+    filteredGraph,
+    fitGraphContent,
+    layoutReady,
+    selectedEdgeId,
+    selectedNodeData,
+    setEdges,
+    setNodes,
+  ]);
+
+  const toggleGenderFilter = useCallback((value: string) => {
+    setGraphFilters((current) => ({
+      ...current,
+      genderValues: current.genderValues.includes(value)
+        ? current.genderValues.filter((item) => item !== value)
+        : [...current.genderValues, value],
+    }));
+  }, []);
+
+  const toggleRelationFilter = useCallback((value: string) => {
+    setGraphFilters((current) => ({
+      ...current,
+      relationKeys: current.relationKeys.includes(value)
+        ? current.relationKeys.filter((item) => item !== value)
+        : [...current.relationKeys, value],
+    }));
+  }, []);
+
+  const clearGraphFilters = useCallback(() => {
+    setGraphFilters(EMPTY_GRAPH_FILTERS);
+  }, []);
+
+  const visibleGenderOptions = activeTag.genderOptions;
+  const visibleRelationOptions = activeTag.relations;
+  const minConnectionRangeMax = Math.max(maxConnectionCount, 1);
 
   const visibleEdges = useMemo(
     () =>
@@ -865,8 +1131,7 @@ export default function GlobalGraphFlow({
         genderOptions: previousData?.genderOptions ?? activeTag.genderOptions,
       };
 
-      setNodes((currentNodes) =>
-        currentNodes.map((node) =>
+      const applyNodeUpdate = (node: Node) =>
           node.id === nodeId
             ? {
                 ...node,
@@ -876,9 +1141,10 @@ export default function GlobalGraphFlow({
                   label: nextNodeData.name,
                 },
               }
-            : node
-        )
-      );
+            : node;
+
+      setAllNodes((currentNodes) => currentNodes.map(applyNodeUpdate));
+      setNodes((currentNodes) => currentNodes.map(applyNodeUpdate));
 
       setSelectedNodeData((current) =>
         current?.id === nodeId ? { ...current, ...nextNodeData } : current
@@ -914,14 +1180,14 @@ export default function GlobalGraphFlow({
 
       const nextConnectionData = {
         relation: result.relationLabel ?? result.relation ?? data.relation,
+        relationKey: result.relation ?? data.relation,
         description: result.description ?? null,
         documentTitle: result.documentTitle ?? null,
         documentContent: result.documentContent ?? null,
         documentImageUrl: result.documentImageUrl ?? null,
       };
 
-      setEdges((currentEdges) =>
-        currentEdges.map((edge) =>
+      const applyEdgeUpdate = (edge: Edge) =>
           edge.id === edgeId
             ? {
                 ...edge,
@@ -931,9 +1197,10 @@ export default function GlobalGraphFlow({
                   ...nextConnectionData,
                 },
               }
-            : edge
-        )
-      );
+            : edge;
+
+      setAllEdges((currentEdges) => currentEdges.map(applyEdgeUpdate));
+      setEdges((currentEdges) => currentEdges.map(applyEdgeUpdate));
 
       setDocumentConnection((current) =>
         current?.edgeId === edgeId ? { ...current, ...nextConnectionData } : current
@@ -1199,9 +1466,13 @@ export default function GlobalGraphFlow({
             <button
               type="button"
               className={`${styles.pathMenuButton} ${isPathMenuOpen ? styles.pathMenuButtonOpen : ''}`}
-              onPointerDown={() => closeSearchArea()}
+              onPointerDown={() => {
+                closeSearchArea();
+                setIsGraphFilterOpen(false);
+              }}
               onClick={() => {
                 closeSearchArea();
+                setIsGraphFilterOpen(false);
                 setIsPathMenuOpen((current) => !current);
               }}
               aria-expanded={isPathMenuOpen}
@@ -1263,6 +1534,278 @@ export default function GlobalGraphFlow({
                 >
                   Montar caminho
                 </button>
+              </div>
+            )}
+          </div>
+
+          <div
+            ref={graphFilterRef}
+            className={styles.graphFilterShell}
+            style={
+              {
+                '--graph-filter-bg': tagTheme.surface,
+                '--graph-filter-border': tagTheme.border,
+                '--graph-filter-primary': tagTheme.primary,
+                '--graph-filter-secondary': tagTheme.secondary,
+                '--graph-filter-muted': tagTheme.muted,
+                '--graph-filter-page-bg': tagTheme.background,
+              } as CSSProperties
+            }
+          >
+            <button
+              type="button"
+              className={`${styles.graphFilterButton} ${isGraphFilterOpen ? styles.graphFilterButtonOpen : ''}`}
+              onPointerDown={() => {
+                closeSearchArea();
+                setIsPathMenuOpen(false);
+                setPathActiveField(null);
+                setPathSearchResults([]);
+              }}
+              onClick={() => {
+                closeSearchArea();
+                setIsPathMenuOpen(false);
+                setPathActiveField(null);
+                setPathSearchResults([]);
+                setIsGraphFilterOpen((current) => !current);
+              }}
+              aria-expanded={isGraphFilterOpen}
+              aria-label="Abrir filtros do grafo"
+            >
+              <span className={styles.graphFilterIcon} aria-hidden="true">≡</span>
+              <span className={styles.graphFilterText}>Filtros</span>
+              {activeFilterCount > 0 && (
+                <span className={styles.graphFilterBadge}>{activeFilterCount}</span>
+              )}
+            </button>
+
+            {isGraphFilterOpen && (
+              <div className={styles.graphFilterPanel}>
+                <div className={styles.graphFilterHeader}>
+                  <div className={styles.graphFilterStats}>
+                    <span>
+                      <strong>{filteredGraph.nodes.length}</strong>
+                      <small>de {allNodes.length} nos</small>
+                    </span>
+                    <span>
+                      <strong>{filteredGraph.edges.length}</strong>
+                      <small>de {allEdges.length} ligacoes</small>
+                    </span>
+                  </div>
+                  {activeFilterCount > 0 && (
+                    <button type="button" onClick={clearGraphFilters}>
+                      Limpar
+                    </button>
+                  )}
+                </div>
+
+                <label className={styles.graphFilterSearch}>
+                  <span>Texto</span>
+                  <input
+                    value={graphFilters.textQuery}
+                    onChange={(event) =>
+                      setGraphFilters((current) => ({
+                        ...current,
+                        textQuery: event.target.value,
+                      }))
+                    }
+                    placeholder="Nome, bio, campo ou tipo..."
+                  />
+                </label>
+
+                <div className={`${styles.graphFilterSection} ${styles.graphFilterSectionCard}`}>
+                  <span className={styles.graphFilterSectionTitle}>Data</span>
+                  <div className={styles.graphFilterSegmented}>
+                    {[
+                      { value: 'any', label: 'Qualquer' },
+                      { value: 'birthDate', label: activeTag.fieldLabels.birthDate },
+                      { value: 'deathDate', label: activeTag.fieldLabels.deathDate },
+                    ].map((item) => (
+                      <button
+                        key={item.value}
+                        type="button"
+                        className={graphFilters.dateField === item.value ? styles.graphFilterSegmentActive : ''}
+                        onClick={() =>
+                          setGraphFilters((current) => ({
+                            ...current,
+                            dateField: item.value as GraphFilters['dateField'],
+                          }))
+                        }
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className={styles.graphFilterMiniChips}>
+                    {[
+                      { value: 'all', label: 'Todas' },
+                      { value: 'withAnyDate', label: 'Com data' },
+                      { value: 'withBirthDate', label: 'Com inicio' },
+                      { value: 'withDeathDate', label: 'Com fim' },
+                      { value: 'withBothDates', label: 'Com ambas' },
+                    ].map((item) => (
+                      <button
+                        key={item.value}
+                        type="button"
+                        className={
+                          graphFilters.datePresence === item.value
+                            ? styles.graphFilterChipSelected
+                            : ''
+                        }
+                        onClick={() =>
+                          setGraphFilters((current) => ({
+                            ...current,
+                            datePresence: item.value as GraphFilters['datePresence'],
+                          }))
+                        }
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className={styles.graphFilterDateGrid}>
+                    <label>
+                      <span>Inicio</span>
+                      <input
+                        type="date"
+                        value={graphFilters.dateFrom}
+                        onChange={(event) =>
+                          setGraphFilters((current) => ({
+                            ...current,
+                            dateFrom: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>Fim</span>
+                      <input
+                        type="date"
+                        value={graphFilters.dateTo}
+                        onChange={(event) =>
+                          setGraphFilters((current) => ({
+                            ...current,
+                            dateTo: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div className={`${styles.graphFilterSection} ${styles.graphFilterSectionCard}`}>
+                  <span className={styles.graphFilterSectionTitle}>{activeTag.fieldLabels.gender}</span>
+                  <div className={styles.graphFilterChips}>
+                    {visibleGenderOptions.map((option) => {
+                      const selected = graphFilters.genderValues.includes(option.key);
+
+                      return (
+                        <button
+                          key={option.key}
+                          type="button"
+                          className={selected ? styles.graphFilterChipSelected : ''}
+                          onClick={() => toggleGenderFilter(option.key)}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className={`${styles.graphFilterSection} ${styles.graphFilterSectionCard}`}>
+                  <span className={styles.graphFilterSectionTitle}>Conteudo do no</span>
+                  <div className={styles.graphFilterSegmented}>
+                    {[
+                      { value: 'all', label: 'Todos' },
+                      { value: 'withPhoto', label: 'Com foto' },
+                      { value: 'withoutPhoto', label: 'Sem foto' },
+                      { value: 'withBio', label: 'Com bio' },
+                    ].map((item) => (
+                      <button
+                        key={item.value}
+                        type="button"
+                        className={graphFilters.nodeContent === item.value ? styles.graphFilterSegmentActive : ''}
+                        onClick={() =>
+                          setGraphFilters((current) => ({
+                            ...current,
+                            nodeContent: item.value as GraphFilters['nodeContent'],
+                          }))
+                        }
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className={`${styles.graphFilterSection} ${styles.graphFilterSectionCard}`}>
+                  <span className={styles.graphFilterSectionTitle}>Tipos de ligacao</span>
+                  <div className={styles.graphFilterChips}>
+                    {visibleRelationOptions.map((relation) => {
+                      const selected = graphFilters.relationKeys.includes(relation.key);
+
+                      return (
+                        <button
+                          key={relation.key}
+                          type="button"
+                          className={selected ? styles.graphFilterChipSelected : ''}
+                          onClick={() => toggleRelationFilter(relation.key)}
+                        >
+                          {relation.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className={styles.graphFilterToggleGrid}>
+                    <label className={styles.graphFilterToggle}>
+                      <input
+                        type="checkbox"
+                        checked={graphFilters.onlyConnected}
+                        onChange={(event) =>
+                          setGraphFilters((current) => ({
+                            ...current,
+                            onlyConnected: event.target.checked,
+                          }))
+                        }
+                      />
+                      <span>Apenas com ligacoes</span>
+                    </label>
+
+                    <label className={styles.graphFilterToggle}>
+                      <input
+                        type="checkbox"
+                        checked={graphFilters.edgeDocumentOnly}
+                        onChange={(event) =>
+                          setGraphFilters((current) => ({
+                            ...current,
+                            edgeDocumentOnly: event.target.checked,
+                          }))
+                        }
+                      />
+                      <span>Ligacoes com documento</span>
+                    </label>
+                  </div>
+
+                  <label className={styles.graphFilterRange}>
+                    <span>
+                      <strong>Minimo de ligacoes</strong>
+                      <small>{graphFilters.minConnections}</small>
+                    </span>
+                    <input
+                      type="range"
+                      min="0"
+                      max={minConnectionRangeMax}
+                      value={graphFilters.minConnections}
+                      onChange={(event) =>
+                        setGraphFilters((current) => ({
+                          ...current,
+                          minConnections: Number(event.target.value),
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
               </div>
             )}
           </div>

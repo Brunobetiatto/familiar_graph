@@ -20,7 +20,8 @@
     "pg": "^8.20.0",
     "quill": "^2.0.3",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "sortablejs": "^1.15.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -29,6 +30,7 @@
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/sortablejs": "^1.15.9",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "prisma": "^7.8.0",

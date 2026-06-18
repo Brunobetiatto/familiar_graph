@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import Sortable from 'sortablejs';
 import {
   DEFAULT_GLOBAL_TAG_SLUG,
   OFFICIAL_GLOBAL_TAGS,
@@ -30,8 +31,16 @@ type TagForm = {
   description: string;
   theme: GlobalTagTheme;
   fieldLabels: GlobalTagFieldLabels;
-  genderOptions: GlobalTagGenderOption[];
-  relations: GlobalTagRelation[];
+  genderOptions: FormGenderOption[];
+  relations: FormRelation[];
+};
+
+type FormGenderOption = GlobalTagGenderOption & {
+  clientId: string;
+};
+
+type FormRelation = GlobalTagRelation & {
+  clientId: string;
 };
 
 const COLOR_FIELDS: Array<{ key: keyof GlobalTagTheme; label: string }> = [
@@ -47,6 +56,32 @@ const COLOR_FIELDS: Array<{ key: keyof GlobalTagTheme; label: string }> = [
   { key: 'edgeSelected', label: 'Aresta selecionada' },
 ];
 
+let rowIdCounter = 0;
+
+function createRowId(prefix: string): string {
+  rowIdCounter += 1;
+  return `${prefix}-${rowIdCounter}`;
+}
+
+function reorderByClientIds<T extends { clientId: string }>(items: T[], clientIds: string[]): T[] {
+  const itemById = new Map(items.map((item) => [item.clientId, item]));
+  const orderedItems = clientIds
+    .map((clientId) => itemById.get(clientId))
+    .filter((item): item is T => Boolean(item));
+
+  if (orderedItems.length !== items.length) return items;
+
+  return orderedItems;
+}
+
+function readSortableClientIds(element: HTMLDivElement | null): string[] {
+  if (!element) return [];
+
+  return Array.from(element.children)
+    .map((child) => (child as HTMLElement).dataset.rowId)
+    .filter((clientId): clientId is string => Boolean(clientId));
+}
+
 function createFormFromTag(tag: GlobalTag): TagForm {
   return {
     currentSlug: tag.slug,
@@ -55,8 +90,14 @@ function createFormFromTag(tag: GlobalTag): TagForm {
     description: tag.description,
     theme: { ...tag.theme },
     fieldLabels: { ...tag.fieldLabels },
-    genderOptions: tag.genderOptions.map((option) => ({ ...option })),
-    relations: tag.relations.map((relation) => ({ ...relation })),
+    genderOptions: tag.genderOptions.map((option) => ({
+      ...option,
+      clientId: createRowId('gender-option'),
+    })),
+    relations: tag.relations.map((relation) => ({
+      ...relation,
+      clientId: createRowId('relation'),
+    })),
   };
 }
 
@@ -69,8 +110,14 @@ function createBlankForm(): TagForm {
     description: '',
     theme: { ...base.theme },
     fieldLabels: { ...base.fieldLabels },
-    genderOptions: base.genderOptions.map((option) => ({ ...option })),
-    relations: base.relations.map((relation) => ({ ...relation })),
+    genderOptions: base.genderOptions.map((option) => ({
+      ...option,
+      clientId: createRowId('gender-option'),
+    })),
+    relations: base.relations.map((relation) => ({
+      ...relation,
+      clientId: createRowId('relation'),
+    })),
   };
 }
 
@@ -84,6 +131,8 @@ export default function TagManager({ onTagsChange }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleteResult, setDeleteResult] = useState('');
+  const genderOptionsListRef = useRef<HTMLDivElement>(null);
+  const relationsListRef = useRef<HTMLDivElement>(null);
   const [openPanels, setOpenPanels] = useState({
     fields: false,
     colors: false,
@@ -106,6 +155,48 @@ export default function TagManager({ onTagsChange }: Props) {
     setDeleteConfirm('');
     setDeleteResult('');
   }, [mode, selectedTag]);
+
+  useEffect(() => {
+    const createSortable = (
+      element: HTMLDivElement | null,
+      onReorder: (clientIds: string[]) => void
+    ) => {
+      if (!element) return null;
+
+      return Sortable.create(element, {
+        animation: 150,
+        ghostClass: styles.sortableGhost,
+        chosenClass: styles.sortableChosen,
+        dragClass: styles.sortableDrag,
+        handle: `.${styles.dragHandle}`,
+        onEnd: () => {
+          const clientIds = Array.from(element.children)
+            .map((child) => (child as HTMLElement).dataset.rowId)
+            .filter((clientId): clientId is string => Boolean(clientId));
+
+          onReorder(clientIds);
+        },
+      });
+    };
+
+    const genderSortable = createSortable(genderOptionsListRef.current, (clientIds) => {
+      setForm((current) => ({
+        ...current,
+        genderOptions: reorderByClientIds(current.genderOptions, clientIds),
+      }));
+    });
+    const relationSortable = createSortable(relationsListRef.current, (clientIds) => {
+      setForm((current) => ({
+        ...current,
+        relations: reorderByClientIds(current.relations, clientIds),
+      }));
+    });
+
+    return () => {
+      genderSortable?.destroy();
+      relationSortable?.destroy();
+    };
+  }, []);
 
   async function fetchTags() {
     try {
@@ -144,7 +235,10 @@ export default function TagManager({ onTagsChange }: Props) {
   function addGenderOption() {
     setForm((current) => ({
       ...current,
-      genderOptions: [...current.genderOptions, { key: '', label: '' }],
+      genderOptions: [
+        ...current.genderOptions,
+        { key: '', label: '', clientId: createRowId('gender-option') },
+      ],
     }));
   }
 
@@ -174,7 +268,9 @@ export default function TagManager({ onTagsChange }: Props) {
       return {
         ...current,
         genderOptions:
-          nextOptions.length > 0 ? nextOptions : [{ key: 'OTHER', label: 'Outro' }],
+          nextOptions.length > 0
+            ? nextOptions
+            : [{ key: 'OTHER', label: 'Outro', clientId: createRowId('gender-option') }],
       };
     });
   }
@@ -182,7 +278,10 @@ export default function TagManager({ onTagsChange }: Props) {
   function addRelation() {
     setForm((current) => ({
       ...current,
-      relations: [...current.relations, { key: '', label: '' }],
+      relations: [
+        ...current.relations,
+        { key: '', label: '', clientId: createRowId('relation') },
+      ],
     }));
   }
 
@@ -211,7 +310,10 @@ export default function TagManager({ onTagsChange }: Props) {
 
       return {
         ...current,
-        relations: nextRelations.length > 0 ? nextRelations : [{ key: 'OTHER', label: 'Outro' }],
+        relations:
+          nextRelations.length > 0
+            ? nextRelations
+            : [{ key: 'OTHER', label: 'Outro', clientId: createRowId('relation') }],
       };
     });
   }
@@ -229,6 +331,14 @@ export default function TagManager({ onTagsChange }: Props) {
     setError('');
 
     try {
+      const orderedGenderOptions = reorderByClientIds(
+        form.genderOptions,
+        readSortableClientIds(genderOptionsListRef.current)
+      );
+      const orderedRelations = reorderByClientIds(
+        form.relations,
+        readSortableClientIds(relationsListRef.current)
+      );
       const payload = {
         currentSlug: form.currentSlug,
         slug: form.slug || slugifyGlobalTag(form.label),
@@ -236,8 +346,8 @@ export default function TagManager({ onTagsChange }: Props) {
         description: form.description,
         theme: form.theme,
         fieldLabels: form.fieldLabels,
-        genderOptions: normalizeGlobalTagGenderOptions(form.genderOptions),
-        relations: normalizeTagRelations(form.relations),
+        genderOptions: normalizeGlobalTagGenderOptions(orderedGenderOptions),
+        relations: normalizeTagRelations(orderedRelations),
       };
       const res = await fetch('/api/admin/global-tags', {
         method: mode === 'create' ? 'POST' : 'PATCH',
@@ -455,9 +565,16 @@ export default function TagManager({ onTagsChange }: Props) {
                 </button>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div ref={genderOptionsListRef} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {form.genderOptions.map((option, index) => (
-                  <div key={`gender-option-${index}`} className={styles.relationRow} style={{ display: 'grid', gridTemplateColumns: '0.85fr 1fr auto', gap: 8, alignItems: 'center' }}>
+                  <div key={option.clientId} data-row-id={option.clientId} className={styles.relationRow} style={{ display: 'grid', gridTemplateColumns: '28px 0.85fr 1fr auto', gap: 8, alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      className={styles.dragHandle}
+                      aria-label="Arrastar opcao"
+                    >
+                      ||
+                    </button>
                     <input
                       value={option.key}
                       onChange={(event) => updateGenderOption(index, 'key', event.target.value)}
@@ -541,9 +658,16 @@ export default function TagManager({ onTagsChange }: Props) {
                   Adicionar
                 </button>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div ref={relationsListRef} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {form.relations.map((relation, index) => (
-                  <div key={`relation-${index}`} className={styles.relationRow} style={{ display: 'grid', gridTemplateColumns: '0.85fr 1fr auto', gap: 8, alignItems: 'center' }}>
+                  <div key={relation.clientId} data-row-id={relation.clientId} className={styles.relationRow} style={{ display: 'grid', gridTemplateColumns: '28px 0.85fr 1fr auto', gap: 8, alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      className={styles.dragHandle}
+                      aria-label="Arrastar relacao"
+                    >
+                      ||
+                    </button>
                     <input
                       value={relation.key}
                       onChange={(event) => updateRelation(index, 'key', event.target.value)}

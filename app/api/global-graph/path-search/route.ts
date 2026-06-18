@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { resolveGlobalTagSlug } from '@/lib/global-tags-server';
+import { fuzzySearchItems } from '@/lib/fuzzy-node-search';
 
 export async function GET(request: Request) {
   try {
@@ -12,16 +13,12 @@ export async function GET(request: Request) {
       return NextResponse.json([], { status: 200 });
     }
 
-    const nodes = await prisma.globalNode.findMany({
+    const candidates = await prisma.globalNode.findMany({
       where: {
         tagSlug,
-        name: {
-          contains: query,
-          mode: 'insensitive',
-        },
       },
       orderBy: { name: 'asc' },
-      take: 12,
+      take: 800,
       select: {
         id: true,
         name: true,
@@ -29,6 +26,8 @@ export async function GET(request: Request) {
         tagSlug: true,
       },
     });
+
+    const nodes = fuzzySearchItems(candidates, query, 12);
 
     return NextResponse.json(nodes, { status: 200 });
   } catch (error) {

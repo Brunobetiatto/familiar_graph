@@ -69,11 +69,19 @@ export function formatDbGlobalTag(tag: DbGlobalTagWithRelations): GlobalTag {
       bio: tag.bioLabel,
     }),
     genderOptions: normalizeGlobalTagGenderOptions(
-      tag.genderOptions?.map((option) => ({ key: option.key, label: option.label })),
+      tag.genderOptions?.map((option) => ({
+        key: option.key,
+        label: option.label,
+        sortOrder: option.sortOrder,
+      })),
       getGlobalTag(tag.slug).genderOptions
     ),
     relations: normalizeTagRelations(
-      tag.relations?.map((relation) => ({ key: relation.key, label: relation.label })),
+      tag.relations?.map((relation) => ({
+        key: relation.key,
+        label: relation.label,
+        sortOrder: relation.sortOrder,
+      })),
       getDefaultRelationsForTag(tag.slug)
     ),
   };
@@ -82,8 +90,8 @@ export function formatDbGlobalTag(tag: DbGlobalTagWithRelations): GlobalTag {
 export async function listGlobalTags(): Promise<GlobalTag[]> {
   const tags = await prisma.globalTag.findMany({
     include: {
-      genderOptions: { orderBy: { label: 'asc' } },
-      relations: { orderBy: { label: 'asc' } },
+      genderOptions: { orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }] },
+      relations: { orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }] },
     },
     orderBy: [{ label: 'asc' }],
   });
@@ -96,8 +104,8 @@ export async function getGlobalTagFromDb(slug?: string | null): Promise<GlobalTa
   const tag = await prisma.globalTag.findUnique({
     where: { slug: normalizedSlug },
     include: {
-      genderOptions: { orderBy: { label: 'asc' } },
-      relations: { orderBy: { label: 'asc' } },
+      genderOptions: { orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }] },
+      relations: { orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }] },
     },
   });
 
@@ -106,8 +114,8 @@ export async function getGlobalTagFromDb(slug?: string | null): Promise<GlobalTa
   const defaultTag = await prisma.globalTag.findUnique({
     where: { slug: DEFAULT_GLOBAL_TAG_SLUG },
     include: {
-      genderOptions: { orderBy: { label: 'asc' } },
-      relations: { orderBy: { label: 'asc' } },
+      genderOptions: { orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }] },
+      relations: { orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }] },
     },
   });
 
@@ -137,8 +145,10 @@ export async function createGlobalTag(input: GlobalTagInput): Promise<GlobalTag>
   const genderOptions = normalizeGlobalTagGenderOptions(
     input.genderOptions ?? input.genderLabels,
     getGlobalTag(slug).genderOptions
+  ).map(({ key, label }) => ({ key, label }));
+  const relations = normalizeTagRelations(input.relations, getDefaultRelationsForTag(slug)).map(
+    ({ key, label }) => ({ key, label })
   );
-  const relations = normalizeTagRelations(input.relations, getDefaultRelationsForTag(slug));
   const created = await prisma.globalTag.create({
     data: {
       slug,
@@ -159,21 +169,23 @@ export async function createGlobalTag(input: GlobalTagInput): Promise<GlobalTag>
       deathDateLabel: fieldLabels.deathDate,
       bioLabel: fieldLabels.bio,
       genderOptions: {
-        create: genderOptions.map((option) => ({
+        create: genderOptions.map((option, index) => ({
           key: option.key,
           label: option.label,
+          sortOrder: index,
         })),
       },
       relations: {
-        create: relations.map((relation) => ({
+        create: relations.map((relation, index) => ({
           key: relation.key,
           label: relation.label,
+          sortOrder: index,
         })),
       },
     },
     include: {
-      genderOptions: { orderBy: { label: 'asc' } },
-      relations: { orderBy: { label: 'asc' } },
+      genderOptions: { orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }] },
+      relations: { orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }] },
     },
   });
 
@@ -188,9 +200,11 @@ export async function updateGlobalTag(slug: string, input: GlobalTagInput): Prom
   const genderOptions = normalizeGlobalTagGenderOptions(
     input.genderOptions ?? input.genderLabels,
     getGlobalTag(nextSlug).genderOptions
-  );
+  ).map(({ key, label }) => ({ key, label }));
   const label = input.label?.trim();
-  const relations = normalizeTagRelations(input.relations, getDefaultRelationsForTag(nextSlug));
+  const relations = normalizeTagRelations(input.relations, getDefaultRelationsForTag(nextSlug)).map(
+    ({ key, label }) => ({ key, label })
+  );
 
   if (!label) {
     throw new Error('Nome da tag e obrigatorio.');
@@ -233,27 +247,29 @@ export async function updateGlobalTag(slug: string, input: GlobalTagInput): Prom
 
     await tx.globalTagGenderOption.deleteMany({ where: { tagSlug: nextSlug } });
     await tx.globalTagGenderOption.createMany({
-      data: genderOptions.map((option) => ({
+      data: genderOptions.map((option, index) => ({
         tagSlug: nextSlug,
         key: option.key,
         label: option.label,
+        sortOrder: index,
       })),
     });
 
     await tx.globalTagRelation.deleteMany({ where: { tagSlug: nextSlug } });
     await tx.globalTagRelation.createMany({
-      data: relations.map((relation) => ({
+      data: relations.map((relation, index) => ({
         tagSlug: nextSlug,
         key: relation.key,
         label: relation.label,
+        sortOrder: index,
       })),
     });
 
     return tx.globalTag.findUniqueOrThrow({
       where: { slug: tag.slug },
       include: {
-        genderOptions: { orderBy: { label: 'asc' } },
-        relations: { orderBy: { label: 'asc' } },
+        genderOptions: { orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }] },
+        relations: { orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }] },
       },
     });
   });

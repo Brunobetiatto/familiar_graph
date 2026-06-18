@@ -38,6 +38,7 @@ type GlobalNodeData = {
 
 type GlobalEdgeData = {
   relation: string;
+  relationKey: string;
   description: string | null;
   documentTitle: string | null;
   documentContent: string | null;
@@ -127,6 +128,7 @@ function formatEdge(
     type: 'elk',
     data: {
       relation: relationLabel,
+      relationKey: edge.relation,
       description: edge.description,
       documentTitle: edge.documentTitle,
       documentContent: edge.documentContent,

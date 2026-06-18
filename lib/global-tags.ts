@@ -27,6 +27,7 @@ export type GlobalTagFieldLabels = {
 export type GlobalTagGenderOption = {
   key: string;
   label: string;
+  sortOrder?: number;
 };
 
 export type GlobalTag = {
@@ -245,10 +246,18 @@ export function normalizeGlobalTagGenderOptions(
   for (const option of source) {
     const label = sanitizeLabel(option.label, '');
     const key = normalizeGenderOptionKey(option.key || label);
+    const sortOrder =
+      'sortOrder' in option && typeof option.sortOrder === 'number'
+        ? option.sortOrder
+        : undefined;
 
     if (!key || !label || seen.has(key)) continue;
 
-    normalized.push({ key, label });
+    normalized.push({
+      key,
+      label,
+      sortOrder,
+    });
     seen.add(key);
   }
 

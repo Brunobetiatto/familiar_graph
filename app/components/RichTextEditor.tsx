@@ -42,14 +42,37 @@ type QuillInstance = {
   getText: (index: number, length?: number) => string;
   getLength: () => number;
   getLine: (index: number) => [{ domNode?: Node; length?: () => number } | null, number];
-  setSelection: (index: number, length?: number, source?: string) => void;
+  format: (name: string, value: unknown, source?: string) => void;
+  setSelection: (
+    indexOrRange: number | { index: number; length: number },
+    lengthOrSource?: number | string,
+    source?: string
+  ) => void;
   insertEmbed: (index: number, type: string, value: string, source?: string) => void;
   deleteText: (index: number, length: number, source?: string) => void;
   clipboard: {
     dangerouslyPasteHTML(html: string, source?: string): void;
     dangerouslyPasteHTML(index: number, html: string, source?: string): void;
   };
-  getModule: (name: string) => { addHandler?: (name: string, callback: () => void) => void };
+  getModule: (name: string) => unknown;
+};
+
+type TableBlot = {
+  domNode?: Node;
+};
+
+type TableModule = {
+  deleteColumn: () => void;
+  deleteRow: () => void;
+  deleteTable: () => void;
+  getTable: (
+    range?: { index: number; length: number } | null
+  ) => [TableBlot | null, TableBlot | null, TableBlot | null, number];
+  insertColumnLeft: () => void;
+  insertColumnRight: () => void;
+  insertRowAbove: () => void;
+  insertRowBelow: () => void;
+  insertTable: (rows: number, columns: number) => void;
 };
 
 function findImageFromTarget(target: EventTarget | null): HTMLImageElement | null {
@@ -100,6 +123,7 @@ export default function RichTextEditor({
   const [mentionResults, setMentionResults] = useState<CitationSearchItem[]>([]);
   const [isMentionLoading, setIsMentionLoading] = useState(false);
   const [imageError, setImageError] = useState('');
+  const [isTableSelection, setIsTableSelection] = useState(false);
 
   useEffect(() => {
     latestValueRef.current = value;
@@ -180,6 +204,7 @@ export default function RichTextEditor({
               [{ list: 'ordered' }, { list: 'bullet' }],
               [{ indent: '-1' }, { indent: '+1' }],
               [{ align: [] }],
+              ['table'],
               mediaTools,
               ['clean'],
             ],
@@ -188,8 +213,17 @@ export default function RichTextEditor({
                 if (!allowImages) return;
                 imageInputRef.current?.click();
               },
+              table: () => {
+                const tableModule = quill.getModule('table') as TableModule | null;
+                tableModule?.insertTable(3, 3);
+                window.requestAnimationFrame(() => {
+                  setIsTableSelection(true);
+                  emitHtml();
+                });
+              },
             },
           },
+          table: true,
         },
       }) as QuillInstance;
 
@@ -233,6 +267,10 @@ export default function RichTextEditor({
       });
 
       quill.on('selection-change', () => {
+        const tableModule = quill.getModule('table') as TableModule | null;
+        const range = quill.getSelection();
+        const [, , cell] = tableModule?.getTable(range) ?? [null, null, null, -1];
+        setIsTableSelection(Boolean(cell));
         detectMention();
       });
 
@@ -308,11 +346,12 @@ export default function RichTextEditor({
 
       if (image) {
         image.dataset.uploadKey = key;
-        image.style.width = '70%';
+        image.style.width = '46%';
         image.style.maxWidth = '100%';
         image.style.height = 'auto';
-        image.style.display = 'block';
-        image.style.margin = '14px auto';
+        image.style.display = 'inline-block';
+        image.style.verticalAlign = 'top';
+        image.style.margin = '8px';
         image.style.borderRadius = '8px';
         image.alt = '';
       }
@@ -334,6 +373,10 @@ export default function RichTextEditor({
   const selectedImageWidth = selectedImage
     ? Number.parseInt(selectedImage.style.width || '70', 10) || 70
     : 70;
+  const selectedImageHeightValue = selectedImage?.style.height && selectedImage.style.height !== 'auto'
+    ? Number.parseInt(selectedImage.style.height, 10) || 240
+    : 240;
+  const selectedImageUsesAutoHeight = !selectedImage?.style.height || selectedImage.style.height === 'auto';
 
   const updateSelectedImage = (styles: CSSProperties) => {
     if (!selectedImage) return;
@@ -351,6 +394,11 @@ export default function RichTextEditor({
     updateSelectedImage({ width: `${safeWidth}%`, maxWidth: '100%' });
   };
 
+  const updateSelectedImageHeight = (height: number) => {
+    const safeHeight = Math.max(40, Math.min(900, Math.round(height)));
+    updateSelectedImage({ height: `${safeHeight}px`, objectFit: 'cover' });
+  };
+
   const removeSelectedImage = () => {
     if (!selectedImage || !selectedImageKey) return;
 
@@ -362,6 +410,88 @@ export default function RichTextEditor({
       imageAssetsRef.current.filter((item) => item.key !== selectedImageKey)
     );
     setSelectedImageKey(null);
+    emitHtml();
+  };
+
+  const getTableModule = (): TableModule | null => {
+    const quill = quillRef.current;
+    if (!quill) return null;
+    return quill.getModule('table') as TableModule | null;
+  };
+
+  const updateTableSelectionState = () => {
+    const tableModule = getTableModule();
+    const quill = quillRef.current;
+    if (!tableModule || !quill) {
+      setIsTableSelection(false);
+      return;
+    }
+
+    const [, , cell] = tableModule.getTable(quill.getSelection());
+    setIsTableSelection(Boolean(cell));
+  };
+
+  const insertTable = (rows: number, columns: number) => {
+    const tableModule = getTableModule();
+    tableModule?.insertTable(rows, columns);
+    window.requestAnimationFrame(() => {
+      updateTableSelectionState();
+      emitHtml();
+    });
+  };
+
+  const runTableAction = (action: keyof Omit<TableModule, 'getTable' | 'insertTable'>) => {
+    const tableModule = getTableModule();
+    tableModule?.[action]();
+    window.requestAnimationFrame(() => {
+      updateTableSelectionState();
+      emitHtml();
+    });
+  };
+
+  const getCurrentTableElements = () => {
+    const tableModule = getTableModule();
+    const quill = quillRef.current;
+    if (!tableModule || !quill) return { table: null, cell: null };
+
+    const [tableBlot, , cellBlot] = tableModule.getTable(quill.getSelection(true));
+    const cell =
+      cellBlot?.domNode instanceof HTMLElement
+        ? cellBlot.domNode
+        : null;
+    const table =
+      tableBlot?.domNode instanceof HTMLElement
+        ? tableBlot.domNode
+        : cell?.closest('table') ?? null;
+
+    return { table, cell };
+  };
+
+  const updateCurrentTable = (styles: CSSProperties) => {
+    const { table } = getCurrentTableElements();
+    if (!table) return;
+
+    Object.entries(styles).forEach(([key, styleValue]) => {
+      if (styleValue === undefined || styleValue === null) return;
+      table.style.setProperty(
+        key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`),
+        String(styleValue)
+      );
+    });
+    emitHtml();
+  };
+
+  const updateCurrentCell = (styles: CSSProperties) => {
+    const { cell } = getCurrentTableElements();
+    if (!cell) return;
+
+    Object.entries(styles).forEach(([key, styleValue]) => {
+      if (styleValue === undefined || styleValue === null) return;
+      cell.style.setProperty(
+        key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`),
+        String(styleValue)
+      );
+    });
     emitHtml();
   };
 
@@ -457,6 +587,105 @@ export default function RichTextEditor({
         </button>
       </div>
 
+      <div className="rich-text-table-controls">
+        <div className="rich-text-table-controls-header">
+          <span>Tabela</span>
+          <div>
+            <button
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => insertTable(2, 2)}
+            >
+              2x2
+            </button>
+            <button
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => insertTable(3, 3)}
+            >
+              3x3
+            </button>
+            <button
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => insertTable(4, 4)}
+            >
+              4x4
+            </button>
+          </div>
+        </div>
+
+        {isTableSelection && (
+          <div className="rich-text-table-control-grid">
+            <div className="rich-text-table-control-group">
+              <span>Estrutura</span>
+              <div>
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runTableAction('insertRowAbove')}>
+                  Linha acima
+                </button>
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runTableAction('insertRowBelow')}>
+                  Linha abaixo
+                </button>
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runTableAction('insertColumnLeft')}>
+                  Coluna esq.
+                </button>
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runTableAction('insertColumnRight')}>
+                  Coluna dir.
+                </button>
+              </div>
+            </div>
+
+            <div className="rich-text-table-control-group">
+              <span>Remover</span>
+              <div>
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runTableAction('deleteRow')}>
+                  Linha
+                </button>
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runTableAction('deleteColumn')}>
+                  Coluna
+                </button>
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runTableAction('deleteTable')}>
+                  Tabela
+                </button>
+              </div>
+            </div>
+
+            <div className="rich-text-table-control-group">
+              <span>Layout</span>
+              <div>
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => updateCurrentTable({ width: '100%', marginLeft: '0', marginRight: '0' })}>
+                  100%
+                </button>
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => updateCurrentTable({ width: '80%', marginLeft: 'auto', marginRight: 'auto' })}>
+                  Centro
+                </button>
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => updateCurrentTable({ width: '60%', marginLeft: 'auto', marginRight: 'auto' })}>
+                  Compacta
+                </button>
+              </div>
+            </div>
+
+            <div className="rich-text-table-control-group">
+              <span>Celula</span>
+              <div>
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCurrentBlockStyles({ textAlign: 'left' })}>
+                  Esq
+                </button>
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => applyCurrentBlockStyles({ textAlign: 'center' })}>
+                  Centro
+                </button>
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => updateCurrentCell({ backgroundColor: 'rgba(196, 154, 42, 0.12)' })}>
+                  Fundo
+                </button>
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => updateCurrentCell({ backgroundColor: 'transparent' })}>
+                  Limpar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {allowImages && selectedImage && (
         <div className="rich-text-image-controls">
           <div className="rich-text-image-controls-header">
@@ -469,27 +698,50 @@ export default function RichTextEditor({
           <div className="rich-text-image-control-grid">
             <div className="rich-text-image-control-group">
               <span>Tamanho</span>
-              <div className="rich-text-image-size-control">
-                <input
-                  type="range"
-                  min="10"
-                  max="100"
-                  step="1"
-                  value={selectedImageWidth}
-                  aria-label="Tamanho da imagem em porcentagem"
-                  onChange={(event) => updateSelectedImageWidth(Number(event.target.value))}
-                />
-                <label>
+              <div className="rich-text-image-axis-controls">
+                <label className="rich-text-image-axis-control">
+                  <span>Horizontal</span>
                   <input
-                    type="number"
+                    type="range"
                     min="10"
                     max="100"
+                    step="1"
                     value={selectedImageWidth}
-                    aria-label="Porcentagem da largura da imagem"
+                    aria-label="Largura horizontal da imagem em porcentagem"
                     onChange={(event) => updateSelectedImageWidth(Number(event.target.value))}
                   />
-                  <span>%</span>
+                  <small>{selectedImageWidth}%</small>
                 </label>
+
+                <label className="rich-text-image-axis-control">
+                  <span>Vertical</span>
+                  <input
+                    type="range"
+                    min="40"
+                    max="900"
+                    step="10"
+                    value={selectedImageHeightValue}
+                    aria-label="Altura vertical da imagem em pixels"
+                    disabled={selectedImageUsesAutoHeight}
+                    onChange={(event) => updateSelectedImageHeight(Number(event.target.value))}
+                  />
+                  <small>{selectedImageUsesAutoHeight ? 'Auto' : `${selectedImageHeightValue}px`}</small>
+                </label>
+
+                <div className="rich-text-image-axis-buttons">
+                  <button
+                    type="button"
+                    onClick={() => updateSelectedImage({ height: 'auto', objectFit: 'contain' })}
+                  >
+                    Altura auto
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateSelectedImageHeight(selectedImageHeightValue)}
+                  >
+                    Altura manual
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -522,6 +774,28 @@ export default function RichTextEditor({
                   onClick={() => updateSelectedImage({ marginLeft: 'auto', marginRight: '0' })}
                 >
                   →
+                </button>
+              </div>
+            </div>
+
+            <div className="rich-text-image-control-group">
+              <span>Fluxo</span>
+              <div>
+                <button
+                  type="button"
+                  title="Permitir imagem ao lado de outra"
+                  aria-label="Permitir imagem ao lado de outra"
+                  onClick={() => updateSelectedImage({ display: 'inline-block', verticalAlign: 'top', margin: '8px' })}
+                >
+                  Em linha
+                </button>
+                <button
+                  type="button"
+                  title="Imagem em linha propria"
+                  aria-label="Imagem em linha propria"
+                  onClick={() => updateSelectedImage({ display: 'block', marginLeft: 'auto', marginRight: 'auto' })}
+                >
+                  Bloco
                 </button>
               </div>
             </div>

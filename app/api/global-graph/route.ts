@@ -7,6 +7,8 @@ import {
   resolveGlobalTagSlug,
 } from '@/lib/global-tags-server';
 
+export const dynamic = 'force-dynamic';
+
 interface PostBody {
   action: 'create_node' | 'create_edge';
   payload: Record<string, unknown>;
@@ -20,7 +22,10 @@ export async function GET(request: Request) {
       tagSlug: searchParams.get('tagSlug'),
     });
 
-    return NextResponse.json(graphWindow, { status: 200 });
+    return NextResponse.json(graphWindow, {
+      status: 200,
+      headers: { 'Cache-Control': 'no-store' },
+    });
 
   } catch (error) {
     console.error("Erro ao buscar o grafo global:", error);

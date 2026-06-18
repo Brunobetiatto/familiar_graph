@@ -1,6 +1,7 @@
 export type GlobalTagRelation = {
   key: string;
   label: string;
+  sortOrder?: number;
 };
 
 export const DEFAULT_GLOBAL_RELATIONS: GlobalTagRelation[] = [
@@ -78,7 +79,11 @@ export function normalizeTagRelations(
     if (!key || !label || seen.has(key)) continue;
 
     seen.add(key);
-    normalized.push({ key, label });
+    normalized.push({
+      key,
+      label,
+      sortOrder: typeof relation.sortOrder === 'number' ? relation.sortOrder : undefined,
+    });
   }
 
   return normalized.length > 0 ? normalized : fallback;
